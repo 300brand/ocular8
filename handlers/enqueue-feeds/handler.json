@@ -1,0 +1,8 @@
+{
+	"Args": {
+		"mongo": "MONGO_HOST"
+	},
+	"Exec": "./enqueue-feeds",
+	"Frequency": 0,
+	"Name": "Enqueue Feeds"
+}
