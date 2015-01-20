@@ -1,0 +1,11 @@
+<div class="col-sm-12">
+	<h1>Configuration Settings</h1>
+	<div class="row" ng-repeat="config in configs">
+		<div class="col-sm-6">{{ config.key }}</div>
+		<div class="col-sm-5">
+			<a href="#/config" editable-text="config.value" e-class="input-config" onaftersave="updateKey(config.key)">
+				{{ config.value || 'no value' }}
+			</a>
+		</div>
+	</div>
+</div>
