@@ -5,25 +5,30 @@ import (
 )
 
 var Config = struct {
-	Etcd struct {
-		Host string
-	}
-	Mongo struct {
-		Host     string
-		Database string
-	}
-	Handlers struct {
-		Path string
-	}
-	Web struct {
-		Assets string
-		Listen string
-	}
-}{}
+	Etcd      string
+	Mongo     string
+	Nsqd      string
+	Handlers  string
+	WebAssets string
+	WebListen string
+}{
+	"http://127.0.0.1:4001",
+	"mongodb://127.0.0.1:27017/test",
+	"127.0.0.1:9200",
+	".",
+	".",
+	":8080",
+}
 
 func init() {
-	flag.StringVar(&Config.Handlers.Path, "handlers.path", "./", "Directory for handlers")
-	flag.StringVar(&Config.Web.Listen, "web.listen", ":8080", "Directory for handlers")
-	flag.StringVar(&Config.Web.Assets, "web.assets", "./", "Directory for web assets")
-	flag.StringVar(&Config.Etcd.Host, "etcd.host", "127.0.0.1:4001", "Etcd server for configs")
+	flag.StringVar(&Config.Handlers, "handlers", Config.Handlers, "Directory for handlers")
+	flag.StringVar(&Config.WebAssets, "assets", Config.WebAssets, "Directory for web assets")
+	flag.StringVar(&Config.WebListen, "listen", Config.WebListen, "Web listen address")
+	flag.StringVar(&Config.Etcd, "etcd", Config.Etcd, "Etcd server for configs")
+	flag.StringVar(&Config.Nsqd, "nsqd", Config.Nsqd, "Nsqd server for queue")
+	flag.StringVar(&Config.Mongo, "mongo", Config.Mongo, "Mongo server")
+}
+
+func Parse() {
+	flag.Parse()
 }

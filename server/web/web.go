@@ -15,14 +15,14 @@ import (
 func Handler() http.Handler {
 	Router := mux.NewRouter()
 
-	Router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(config.Config.Web.Assets)))
+	Router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(config.Config.WebAssets)))
 	Router.HandleFunc("/", HandleIndex)
 
 	return handlers.CombinedLoggingHandler(os.Stdout, Router)
 }
 
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
-	appDir := filepath.Join(config.Config.Web.Assets, "app")
+	appDir := filepath.Join(config.Config.WebAssets, "app")
 	appFiles := make([]string, 0, 16)
 	filepath.Walk(appDir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
@@ -39,7 +39,7 @@ func HandleIndex(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	indexPath := filepath.Join(config.Config.Web.Assets, "index.gohtml")
+	indexPath := filepath.Join(config.Config.WebAssets, "index.gohtml")
 	t, err := template.ParseFiles(indexPath)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

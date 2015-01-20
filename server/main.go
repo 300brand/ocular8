@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -59,7 +58,7 @@ func startPolling(stopChan chan bool, configs []handler.Handler) {
 }
 
 func main() {
-	flag.Parse()
+	config.Parse()
 
 	glog.Infof("Config %+v", config.Config)
 
@@ -70,7 +69,7 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, os.Kill)
 
-	handlerConfigs, err := handler.ParseConfigs(config.Config.Handlers.Path)
+	handlerConfigs, err := handler.ParseConfigs(config.Config.Handlers)
 	if err != nil {
 		glog.Errorf("parseConfigs: %s", err)
 	}
@@ -82,7 +81,7 @@ func main() {
 		if err := http.ListenAndServe(addr, web.Handler()); err != nil {
 			glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
 		}
-	}(config.Config.Web.Listen)
+	}(config.Config.WebListen)
 
 	glog.Infof("Running")
 
