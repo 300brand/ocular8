@@ -1,9 +1,11 @@
 {
-	"Args": {
-		"mongo": [ "{{ .Mongo }}" ],
-		"nsq":   [ "{{ .Nsqd }}" ]
-	},
-	"Exec": "enqueue-feeds",
+	"Command": [
+		"./enqueue-feeds",
+		"-mongo",
+		"{{ .Config.Mongo }}",
+		"-nsqd",
+		"{{ .Config.Nsqd }}"
+	],
 	"Frequency": 1,
 	"Name": "Enqueue Feeds"
 }

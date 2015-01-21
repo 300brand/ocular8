@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 )
 
 var (
@@ -11,4 +12,5 @@ var (
 
 func main() {
 	flag.Parse()
+	fmt.Printf("Mongo DSN: %s\nNSQd Host: %s\n", *dsn, *nsq)
 }
