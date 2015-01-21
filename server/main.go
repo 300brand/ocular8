@@ -17,7 +17,7 @@ func poll(stopChan chan bool, h handler.Handler) {
 	glog.Infof("Polling %s every %s", h.Name, duration)
 	for {
 		glog.Infof("Polling %s", h.Name)
-		if err := h.Run(nil); err != nil {
+		if err := h.Run(time.Now().Format(time.RFC3339Nano)); err != nil {
 			glog.Errorf("Poll run %s: %s", h.Name, err)
 		}
 		select {

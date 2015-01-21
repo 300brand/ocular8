@@ -4,14 +4,16 @@ import (
 	"flag"
 )
 
-var Config = struct {
+type ConfigType struct {
 	Etcd      string
 	Mongo     string
 	Nsqd      string
 	Handlers  string
 	WebAssets string
 	WebListen string
-}{
+}
+
+var Config = &ConfigType{
 	"http://127.0.0.1:4001",
 	"mongodb://127.0.0.1:27017/test",
 	"127.0.0.1:9200",

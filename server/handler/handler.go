@@ -4,69 +4,76 @@ import (
 	"bytes"
 	"github.com/300brand/ocular8/server/config"
 	"github.com/golang/glog"
+	"os"
 	"os/exec"
-	"path/filepath"
 	"text/template"
 )
 
 type Handler struct {
-	Args      map[string][]string // map of [arg]configName
-	Exec      string              // Execution string
-	Frequency int                 // How many times to run per hour
-	Name      string              // Handler name
+	Command   []string // Handler command
+	Frequency int      // How many times to run per hour
+	Name      string   // Handler name
 	NSQ       struct {
 		Channel string // NSQ channel to listen on
 		Topic   string // NSQ topic to listen on
 	}
+	Options map[string]interface{} // Additional configs sent to central config
 
-	dir        string   // Path to handler directory
-	parsedArgs []string // Pre-parsed arguments
+	dir string // Path to handler directory
+}
+
+type HandlerOptions struct {
+	Config     *config.ConfigType
+	Options    map[string]interface{}
+	Data       string
+	HandlerDir string
 }
 
 func (h *Handler) SetDir(dir string) {
 	h.dir = dir
 }
 
-func (h *Handler) ParsedArgs() (args []string) {
-	if h.parsedArgs != nil {
-		return h.parsedArgs
-	}
-
-	args = make([]string, 0, 16)
+func (h *Handler) ParsedCmd(data string) (cmd []string) {
+	cmd = make([]string, len(h.Command))
 	buf := bytes.NewBuffer(make([]byte, 256))
-
-	for k, vals := range h.Args {
-		args = append(args, k)
-		for _, raw := range vals {
-			t, err := template.New("").Parse(raw)
-			if err != nil {
-				glog.Warningf("template.Parse(%s): %s", raw, err)
-				args = append(args, raw)
-				continue
-			}
-
-			if err = t.Execute(buf, config.Config); err != nil {
-				glog.Warningf("template.Execute(%s): %s", raw, err)
-				args = append(args, raw)
-				continue
-			}
-
-			args = append(args, buf.String())
-		}
+	options := HandlerOptions{
+		Config:     config.Config,
+		Options:    h.Options,
+		Data:       data,
+		HandlerDir: h.dir,
 	}
 
-	h.parsedArgs = args
+	for i, raw := range h.Command {
+		t, err := template.New("").Parse(raw)
+		if err != nil {
+			glog.Warningf("template.Parse(%s): %s", raw, err)
+			cmd[i] = raw
+			continue
+		}
+
+		buf.Reset()
+		if err = t.Execute(buf, options); err != nil {
+			glog.Warningf("template.Execute(%s): %s", raw, err)
+			cmd[i] = raw
+			continue
+		}
+
+		cmd[i] = buf.String()
+	}
 	return
 }
 
-func (h Handler) Run(data []byte) (err error) {
-	absExec, err := filepath.Abs(filepath.Join(h.dir, h.Exec))
-	if err != nil {
+func (h Handler) Run(data string) (err error) {
+	args := h.ParsedCmd(data)
+	glog.Infof("%q", args)
+
+	if err = os.Chdir(h.dir); err != nil {
 		return
 	}
 
-	cmd := exec.Command(absExec, h.ParsedArgs()...)
-	cmd.Dir = h.dir
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
 	if err = cmd.Start(); err != nil {
 		return
 	}
