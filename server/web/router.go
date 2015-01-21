@@ -25,8 +25,23 @@ func Handler() http.Handler {
 		api.Path(path).HandlerFunc(del).Methods("DELETE")
 	}
 
+	// Pubs
 	coll("/pubs", GetPubs, PostPub)
-	item("/pubs/{id:[a-f0-9]{24}}", GetPub, PutPub, DelPub)
+	item("/pubs/{pubid:[a-f0-9]{24}}", GetPub, PutPub, DelPub)
+
+	// Feeds
+	coll("/feeds", GetFeeds, PostFeed)
+	item("/feeds/{feedid:[a-f0-9]{24}}", GetFeed, PutFeed, DelFeed)
+	coll("/pubs/{pubid:[a-f0-9]{24}}/feeds", GetFeeds, PostFeed)
+	item("/pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}", GetFeed, PutFeed, DelFeed)
+
+	// Articles
+	coll("/articles", GetArticles, PostArticle)
+	item("/articles/{articleid:[a-f0-9]{24}}", GetArticle, PutArticle, DelArticle)
+	coll("/feeds/{feedid:[a-f0-9]{24}}/articles", GetArticles, PostArticle)
+	item("/feeds/{feedid:[a-f0-9]{24}}/articles/{articleid:[a-f0-9]{24}}", GetArticle, PutArticle, DelArticle)
+	coll("/pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}/articles", GetArticles, PostArticle)
+	item("/pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}/articles/{articleid:[a-f0-9]{24}}", GetArticle, PutArticle, DelArticle)
 
 	router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(config.Config.WebAssets)))
 	router.HandleFunc("/", HandleIndex)
