@@ -1,8 +1,9 @@
 {
 	"Args": {
-		"mongo": "MONGO_HOST"
+		"mongo": [ "{{ .Mongo }}" ],
+		"nsq":   [ "{{ .Nsqd }}" ]
 	},
-	"Exec": "./enqueue-feeds",
-	"Frequency": 0,
+	"Exec": "enqueue-feeds",
+	"Frequency": 1,
 	"Name": "Enqueue Feeds"
 }
