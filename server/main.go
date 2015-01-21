@@ -87,7 +87,7 @@ func main() {
 
 	// Catch kill
 	s := <-signalChan
-	glog.Info("Caught signsl:", s)
+	glog.Info("Caught signal:", s)
 
 	// Cleanup
 	stopPollingChan <- true
