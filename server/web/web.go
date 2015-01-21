@@ -8,18 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/300brand/ocular8/server/config"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
 )
-
-func Handler() http.Handler {
-	Router := mux.NewRouter()
-
-	Router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(config.Config.WebAssets)))
-	Router.HandleFunc("/", HandleIndex)
-
-	return handlers.CombinedLoggingHandler(os.Stdout, Router)
-}
 
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
 	appDir := filepath.Join(config.Config.WebAssets, "app")
