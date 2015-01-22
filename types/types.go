@@ -1,8 +1,9 @@
 package types
 
 import (
-	"labix.org/v2/mgo/bson"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 type Pub struct {
