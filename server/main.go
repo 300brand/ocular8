@@ -90,11 +90,15 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, os.Kill)
 
-	go func(addr string) {
-		if err := http.ListenAndServe(addr, web.Handler()); err != nil {
+	if err := web.Mongo(config.Config.Mongo); err != nil {
+		glog.Fatalf("web.Mongo(%s): %s", config.Config.Mongo, err)
+	}
+
+	go func(addr, dir string) {
+		if err := http.ListenAndServe(addr, web.Handler(dir)); err != nil {
 			glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
 		}
-	}(config.Config.WebListen)
+	}(config.Config.WebListen, config.Config.WebAssets)
 
 	stopChan, err := setupHandlers(config.Config.Handlers)
 	if err != nil {
@@ -108,6 +112,7 @@ func main() {
 	glog.Info("Caught signal:", s)
 	stopChan <- true
 	glog.Info("Cleaning up")
+	web.Close()
 	<-stopChan
 	glog.Info("Exiting")
 }
