@@ -1,7 +1,7 @@
 "use strict"
 
 angular.module("adminPubs", [
-	"ngResource",
+	"api",
 	"ngRoute"
 ])
 
@@ -15,12 +15,6 @@ angular.module("adminPubs", [
 			controller:  "AdminPubsNewController",
 			templateUrl: "/app/pubs/form.partial.html"
 		})
-}])
-
-.factory("Pubs", ["$resource", function($resource) {
-	return $resource("/api/pubs/:pubid", null, {
-		"update": { method: "PUT" }
-	})
 }])
 
 .controller("AdminPubsListController", [
@@ -55,12 +49,16 @@ angular.module("adminPubs", [
 					return
 				}
 			}
-			$scope.Feeds.push({ Url: $scope.NewFeed })
+			var f = new PubFeeds()
+			f.Url = $scope.NewFeed
+			$scope.Feeds.push(f)
 			$scope.NewFeed = ""
 		}
 		$scope.save = function() {
-			$scope.Pub.$save(function() {
-				$log.log("Saved", $scope.Pub)
+			$scope.Pub.$save(function(pub, headers) {
+				for (var i = 0; i < $scope.Feeds.length; i++) {
+					$scope.Feeds[i].$save({ pubid: pub.Id })
+				}
 			})
 		}
 	}
