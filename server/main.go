@@ -29,6 +29,30 @@ func poll(stopChan chan bool, h handler.Handler) {
 	}
 }
 
+func setupHandlers(dir string) (stopChan chan bool, err error) {
+	handlerConfigs, err := handler.ParseConfigs(dir)
+	if err != nil {
+		glog.Errorf("parseConfigs: %s", err)
+		return
+	}
+
+	stopChan, poll, consume := make(chan bool), make(chan bool), make(chan bool)
+
+	go func(ch chan bool) {
+		<-ch
+		poll <- true
+		consume <- true
+		<-poll
+		<-consume
+		ch <- true
+	}(stopChan)
+
+	go startPolling(poll, handlerConfigs)
+	go startConsumers(consume, handlerConfigs)
+
+	return
+}
+
 func startConsumers(stopChan chan bool, configs []handler.Handler) {
 	glog.V(1).Infof("Consumers: Starting")
 	<-stopChan
@@ -62,20 +86,9 @@ func main() {
 
 	glog.Infof("Config %+v", config.Config)
 
-	stopPollingChan := make(chan bool)
-	stopConsumersChan := make(chan bool)
-
 	// Listen for signals
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, os.Kill)
-
-	handlerConfigs, err := handler.ParseConfigs(config.Config.Handlers)
-	if err != nil {
-		glog.Errorf("parseConfigs: %s", err)
-	}
-
-	go startPolling(stopPollingChan, handlerConfigs)
-	go startConsumers(stopConsumersChan, handlerConfigs)
 
 	go func(addr string) {
 		if err := http.ListenAndServe(addr, web.Handler()); err != nil {
@@ -83,18 +96,18 @@ func main() {
 		}
 	}(config.Config.WebListen)
 
+	stopChan, err := setupHandlers(config.Config.Handlers)
+	if err != nil {
+		glog.Fatalf("setupHandlers(%s): %s", config.Config.Handlers, err)
+	}
+
 	glog.Infof("Running")
 
-	// Catch kill
+	// Catch kill, clean up, exit
 	s := <-signalChan
 	glog.Info("Caught signal:", s)
-
-	// Cleanup
-	stopPollingChan <- true
-	stopConsumersChan <- true
-
+	stopChan <- true
+	glog.Info("Cleaning up")
+	<-stopChan
 	glog.Info("Exiting")
-
-	<-stopPollingChan
-	<-stopConsumersChan
 }
