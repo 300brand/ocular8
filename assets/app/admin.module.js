@@ -7,7 +7,7 @@ angular.module("admin", [
 	"xeditable",
 
 	"adminConfig",
-	"adminPub"
+	"adminPubs"
 ])
 
 .config(["$routeProvider", "$locationProvider", function($routeProvider, $locationProvider) {
