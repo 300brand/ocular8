@@ -4,12 +4,15 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/300brand/ocular8/server/config"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
-func Handler() http.Handler {
+var AssetsDir string
+
+func Handler(assetsDir string) http.Handler {
+	AssetsDir = assetsDir
+
 	router := mux.NewRouter()
 
 	headers := []string{
@@ -47,7 +50,7 @@ func Handler() http.Handler {
 	coll("/pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}/articles", GetArticles, PostArticle)
 	item("/pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}/articles/{articleid:[a-f0-9]{24}}", GetArticle, PutArticle, DelArticle)
 
-	router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(config.Config.WebAssets)))
+	router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(AssetsDir)))
 	router.HandleFunc("/", HandleIndex)
 
 	return handlers.CombinedLoggingHandler(os.Stdout, router)

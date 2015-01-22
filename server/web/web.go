@@ -6,12 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/300brand/ocular8/server/config"
 	"github.com/golang/glog"
 )
 
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
-	assetsApp := filepath.Join(config.Config.WebAssets, "app")
+	assetsApp := filepath.Join(AssetsDir, "app")
 	appDir, err := filepath.Abs(assetsApp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -38,7 +37,7 @@ func HandleIndex(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	indexPath := filepath.Join(config.Config.WebAssets, "index.gohtml")
+	indexPath := filepath.Join(AssetsDir, "index.gohtml")
 	t, err := template.ParseFiles(indexPath)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
