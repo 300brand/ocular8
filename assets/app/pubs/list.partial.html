@@ -5,12 +5,16 @@
 	<table class="table">
 		<thead>
 			<tr>
+				<th>Id</th>
 				<th>Name</th>
+				<th>Last Modified</th>
 			</tr>
 		</thead>
 		<tbody>
 			<tr ng-repeat="Pub in Pubs">
+				<td>{{ Pub.Id }}</td>
 				<td>{{ Pub.Name }}</td>
+				<td>{{ Pub.LastUpdate | date }}</td>
 			</tr>
 		</tbody>
 	</table>
