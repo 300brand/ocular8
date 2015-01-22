@@ -67,9 +67,9 @@ func (h Handler) Run(data string) (err error) {
 	args := h.ParsedCmd(data)
 	glog.Infof("%q", args)
 
-	if err = os.Chdir(h.dir); err != nil {
-		return
-	}
+	// if err = os.Chdir(h.dir); err != nil {
+	// 	return
+	// }
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
