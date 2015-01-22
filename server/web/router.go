@@ -12,16 +12,20 @@ import (
 func Handler() http.Handler {
 	router := mux.NewRouter()
 
+	headers := []string{
+		"Content-Type", "application/json",
+		"Content-Type", "application/json;charset=UTF-8",
+	}
 	api := router.PathPrefix("/api").Subrouter()
 
 	coll := func(path string, get, post http.HandlerFunc) {
 		api.Path(path).HandlerFunc(get).Methods("GET")
-		api.Path(path).HandlerFunc(post).Headers("Content-Type", "application/json").Methods("POST")
+		api.Path(path).HandlerFunc(post).Headers(headers...).Methods("POST")
 	}
 
 	item := func(path string, get, put, del http.HandlerFunc) {
 		api.Path(path).HandlerFunc(get).Methods("GET")
-		api.Path(path).HandlerFunc(put).Headers("Content-Type", "application/json").Methods("PUT")
+		api.Path(path).HandlerFunc(put).Headers(headers...).Methods("PUT")
 		api.Path(path).HandlerFunc(del).Methods("DELETE")
 	}
 
