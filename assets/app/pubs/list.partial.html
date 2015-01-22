@@ -1,0 +1,17 @@
+<div class="col-sm-12">
+	<h1>Publications</h1>
+	<p><a href="#/pubs/new" class="btn btn-primary">Add Publication</a></p>
+
+	<table class="table">
+		<thead>
+			<tr>
+				<th>Name</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr ng-repeat="Pub in Pubs">
+				<td>{{ Pub.Name }}</td>
+			</tr>
+		</tbody>
+	</table>
+</div>

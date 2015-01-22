@@ -1,7 +1,6 @@
 "use strict"
 
 angular.module("admin", [
-	"ngCookies",
 	"ngRoute",
 	"jsonrpc",
 	"xeditable",

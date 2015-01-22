@@ -1,0 +1,48 @@
+<div class="col-sm-12">
+	<h1>{{ Title }} Publication</h1>
+	<form name="PubForm" class="form-horizontal" ng-submit="save()">
+		<div class="form-group">
+			<label for="PubName" class="col-sm-2 control-label">Name</label>
+			<div class="col-sm-10">
+				<input type="text" class="form-control" name="PubName" id="PubName" ng-model="Pub.Name" required>
+			</div>
+		</div>
+		<div class="form-group">
+			<label for="PubHomepage" class="col-sm-2 control-label">Homepage</label>
+			<div class="col-sm-10">
+				<input type="url" class="form-control" name="PubHomepage" id="PubHomepage" ng-model="Pub.Homepage" required>
+			</div>
+		</div>
+		<div class="form-group">
+			<label for="PubDescription" class="col-sm-2 control-label">Description</label>
+			<div class="col-sm-10">
+				<input type="text" class="form-control" name="PubDescription" id="PubDescription" ng-model="Pub.Description">
+			</div>
+		</div>
+		<div class="form-group" ng-class="{ 'has-error': !PubForm.PubReadership.$valid }">
+			<label for="PubReadership" class="col-sm-2 control-label">Readership</label>
+			<div class="col-sm-4">
+				<input type="number" class="form-control" name="PubReadership" id="PubReadership" ng-model="Pub.Readership">
+			</div>
+		</div>
+		<div class="form-group" ng-class="{ 'has-error': PubForm.NewFeed.$error.url }">
+			<label for="NewFeed" class="col-sm-2 control-label">Feeds</label>
+			<div class="col-sm-10">
+				<p class="form-control-static" ng-repeat="Feed in Feeds">{{ Feed.Url }}</p>
+				<div class="row">
+					<div class="col-sm-10">
+						<input type="url" class="form-control" id="NewFeed" name="NewFeed" ng-model="NewFeed">
+					</div>
+					<div class="col-sm-2">
+						<button class="btn btn-default" ng-click="addNewFeed()" ng-disabled="!NewFeed || !PubForm.NewFeed.$valid">Add Feed</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="form-group">
+			<div class="col-sm-offset-2 col-sm-10">
+				<button type="submit" class="btn btn-default" ng-disabled="!PubForm.$valid">Add Publication</button>
+			</div>
+		</div>
+	</form>
+</div>
