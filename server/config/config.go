@@ -15,7 +15,7 @@ type ConfigType struct {
 
 var Config = &ConfigType{
 	"http://127.0.0.1:4001",
-	"mongodb://127.0.0.1:27017/test",
+	"mongodb://127.0.0.1:27017/ocular8",
 	"127.0.0.1:9200",
 	".",
 	".",
