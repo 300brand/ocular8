@@ -11,7 +11,7 @@ import (
 )
 
 func GetPubs(w http.ResponseWriter, r *http.Request) {
-	limit := 10
+	limit := 20
 	pubs := make([]types.Pub, limit)
 	err := mongodb.C("pubs").Find(nil).Sort("name").Limit(limit).All(&pubs)
 	if err != nil {
@@ -44,8 +44,8 @@ func PostPub(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetPub(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := bson.ObjectIdHex(vars["pubid"])
+	v := mux.Vars(r)
+	id := bson.ObjectIdHex(v["pubid"])
 	pub := new(types.Pub)
 	if err := mongodb.C("pubs").FindId(id).One(pub); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -66,11 +66,33 @@ func DelPub(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetFeeds(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("GetFeeds\n"))
+	limit := 20
+	feeds := make([]types.Feed, limit)
+	query := make(map[string]interface{})
+	if pubid, ok := mux.Vars(r)["pubid"]; ok {
+		query["pubid"] = bson.ObjectIdHex(pubid)
+	}
+	err := mongodb.C("feeds").Find(query).Sort("url").Limit(limit).All(&feeds)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(feeds); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func PostFeed(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("PostFeed\n"))
+	feed := new(types.Feed)
+	if err := json.NewDecoder(r.Body).Decode(feed); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if pubid, ok := mux.Vars(r)["pubid"]; ok {
+		feed.PubId = bson.ObjectIdHex(pubid)
+	}
+	glog.Infof("%+v", feed)
 }
 
 func GetFeed(w http.ResponseWriter, r *http.Request) {
