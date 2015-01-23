@@ -2,6 +2,9 @@ package web
 
 import (
 	"encoding/json"
+	"github.com/golang/glog"
+	"gopkg.in/mgo.v2"
+	"io"
 	"net/http"
 	"time"
 
@@ -10,119 +13,131 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-func GetPubs(w http.ResponseWriter, r *http.Request) {
-	limit := 20
-	pubs := make([]types.Pub, limit)
-	err := mongodb.C("pubs").Find(nil).Sort("name").Limit(limit).All(&pubs)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(pubs); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+type APIContext struct {
+	Body io.ReadCloser
+	DB   *mgo.Database
+	Vars map[string]string
+}
+type APIFuncType func(*APIContext) (interface{}, error)
+
+func APIHandler(f APIFuncType) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		ctx := &APIContext{
+			Body: r.Body,
+			DB:   mongo.Clone().DB(""),
+			Vars: mux.Vars(r),
+		}
+		defer ctx.DB.Session.Close()
+
+		out, err := f(ctx)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			enc.Encode(struct{ Error error }{err})
+			return
+		}
+		switch r.Method {
+		case "POST":
+			w.WriteHeader(http.StatusCreated)
+		}
+		if err = enc.Encode(out); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			enc.Encode(struct{ Error error }{err})
+		}
 	}
 }
 
-func PostPub(w http.ResponseWriter, r *http.Request) {
+func GetPubs(ctx *APIContext) (out interface{}, err error) {
+	limit := 20
+	pubs := make([]types.Pub, limit)
+	err = ctx.DB.C("pubs").Find(nil).Sort("name").Limit(limit).All(&pubs)
+	return pubs, err
+}
+
+func PostPub(ctx *APIContext) (out interface{}, err error) {
 	pub := new(types.Pub)
-	if err := json.NewDecoder(r.Body).Decode(pub); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err = json.NewDecoder(ctx.Body).Decode(pub); err != nil {
 		return
 	}
 	pub.Id = bson.NewObjectId()
 	pub.LastUpdate = time.Now()
-	if err := mongodb.C("pubs").Insert(pub); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(pub); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	err = ctx.DB.C("pubs").Insert(pub)
+	return
 }
 
-func GetPub(w http.ResponseWriter, r *http.Request) {
-	v := mux.Vars(r)
-	id := bson.ObjectIdHex(v["pubid"])
+func GetPub(ctx *APIContext) (out interface{}, err error) {
+	id := bson.ObjectIdHex(ctx.Vars["pubid"])
+	out = new(types.Pub)
+	err = ctx.DB.C("pubs").FindId(id).One(out)
+	return
+}
+
+func PutPub(ctx *APIContext) (out interface{}, err error) {
 	pub := new(types.Pub)
-	if err := mongodb.C("pubs").FindId(id).One(pub); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	if err = json.NewDecoder(ctx.Body).Decode(pub); err != nil {
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(pub); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	pub.LastUpdate = time.Now()
+	err = ctx.DB.C("pubs").UpdateId(pub.Id, pub)
+	return pub, err
 }
 
-func PutPub(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("PutPub\n"))
+func DelPub(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func DelPub(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("DeletePub\n"))
-}
-
-func GetFeeds(w http.ResponseWriter, r *http.Request) {
+func GetFeeds(ctx *APIContext) (out interface{}, err error) {
 	limit := 20
 	feeds := make([]types.Feed, limit)
 	query := make(map[string]interface{})
-	if pubid, ok := mux.Vars(r)["pubid"]; ok {
+	if pubid, ok := ctx.Vars["pubid"]; ok {
 		query["pubid"] = bson.ObjectIdHex(pubid)
 	}
-	err := mongodb.C("feeds").Find(query).Sort("url").Limit(limit).All(&feeds)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(feeds); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	err = ctx.DB.C("feeds").Find(query).Sort("url").Limit(limit).All(&feeds)
+	return feeds, err
 }
 
-func PostFeed(w http.ResponseWriter, r *http.Request) {
+func PostFeed(ctx *APIContext) (out interface{}, err error) {
 	feed := new(types.Feed)
-	if err := json.NewDecoder(r.Body).Decode(feed); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err = json.NewDecoder(ctx.Body).Decode(feed); err != nil {
 		return
 	}
-	if pubid, ok := mux.Vars(r)["pubid"]; ok {
+	if pubid, ok := ctx.Vars["pubid"]; ok {
 		feed.PubId = bson.ObjectIdHex(pubid)
 	}
 	glog.Infof("%+v", feed)
+	return feed, nil
 }
 
-func GetFeed(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("GetFeed\n"))
+func GetFeed(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func PutFeed(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("PutFeed\n"))
+func PutFeed(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func DelFeed(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("DelFeed\n"))
+func DelFeed(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func GetArticles(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("GetArticles\n"))
+func GetArticles(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func PostArticle(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("PostArticle\n"))
+func PostArticle(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func GetArticle(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("GetArticle\n"))
+func GetArticle(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func PutArticle(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("PutArticle\n"))
+func PutArticle(ctx *APIContext) (out interface{}, err error) {
+	return
 }
 
-func DelArticle(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("DelArticle\n"))
+func DelArticle(ctx *APIContext) (out interface{}, err error) {
+	return
 }
