@@ -15,7 +15,22 @@ angular.module("adminPubs", [
 			controller:  "AdminPubsNewController",
 			templateUrl: "/app/pubs/form.partial.html"
 		})
+		.when("/pubs/:pubid", {
+			controller:  "AdminPubsEditController",
+			templateUrl: "/app/pubs/form.partial.html"
+		})
 }])
+
+.controller("AdminPubsEditController", [
+	"$log",
+	"$rootScope",
+	"$routeParams",
+	"$scope",
+	"Pubs",
+	function($log, $rootScope, $routeParams, $scope, Pubs) {
+		$scope.Pub = Pubs.get({ pubid: $routeParams.pubid })
+	}
+])
 
 .controller("AdminPubsListController", [
 	"$log",
@@ -23,9 +38,7 @@ angular.module("adminPubs", [
 	"$scope",
 	"Pubs",
 	function($log, $rootScope, $scope, Pubs) {
-		$scope.Pubs = Pubs.query(function() {
-			$log.log("Pubs.query")
-		})
+		$scope.Pubs = Pubs.query()
 	}
 ])
 
