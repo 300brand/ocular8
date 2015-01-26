@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/300brand/ocular8/types"
-	"github.com/golang/glog"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -32,14 +31,14 @@ func PostPub(ctx *Context) (out interface{}, err error) {
 	pub.Id = bson.NewObjectId()
 	pub.LastUpdate = time.Now()
 	err = ctx.DB.C("pubs").Insert(pub)
-	return
+	return pub, err
 }
 
 func GetPub(ctx *Context) (out interface{}, err error) {
 	id := bson.ObjectIdHex(ctx.Vars["pubid"])
-	out = new(types.Pub)
-	err = ctx.DB.C("pubs").FindId(id).One(out)
-	return
+	pub := new(types.Pub)
+	err = ctx.DB.C("pubs").FindId(id).One(pub)
+	return pub, err
 }
 
 func PutPub(ctx *Context) (out interface{}, err error) {
@@ -72,11 +71,15 @@ func PostFeed(ctx *Context) (out interface{}, err error) {
 	if err = json.NewDecoder(ctx.Body).Decode(feed); err != nil {
 		return
 	}
+	feed.Id = bson.NewObjectId()
 	if pubid, ok := ctx.Vars["pubid"]; ok {
 		feed.PubId = bson.ObjectIdHex(pubid)
 	}
-	glog.Infof("%+v", feed)
-	return feed, nil
+	if err = ctx.DB.C("feeds").Insert(feed); err != nil {
+		return
+	}
+	err = ctx.DB.C("pubs").UpdateId(feed.PubId, bson.M{"$inc": bson.M{"numfeeds": 1}})
+	return feed, err
 }
 
 func GetFeed(ctx *Context) (out interface{}, err error) {
