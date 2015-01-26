@@ -19,7 +19,8 @@ type Context struct {
 func GetPubs(ctx *Context) (out interface{}, err error) {
 	limit := 20
 	pubs := make([]types.Pub, limit)
-	err = ctx.DB.C("pubs").Find(nil).Sort("name").Limit(limit).All(&pubs)
+	bson.M{"deleted": bson.M{"$exists": false}}
+	err = ctx.DB.C("pubs").Find(query).Sort("name").Limit(limit).All(&pubs)
 	return pubs, err
 }
 
@@ -52,13 +53,15 @@ func PutPub(ctx *Context) (out interface{}, err error) {
 }
 
 func DelPub(ctx *Context) (out interface{}, err error) {
+	update := bson.M{"$set": bson.M{"deleted": true}}
+	err = ctx.DB.C("pubs").UpdateId(bson.ObjectIdHex(ctx.Vars["pubid"]), update)
 	return
 }
 
 func GetFeeds(ctx *Context) (out interface{}, err error) {
 	limit := 20
 	feeds := make([]types.Feed, limit)
-	query := make(map[string]interface{})
+	query := bson.M{"deleted": bson.M{"$exists": false}}
 	if pubid, ok := ctx.Vars["pubid"]; ok {
 		query["pubid"] = bson.ObjectIdHex(pubid)
 	}
@@ -83,7 +86,9 @@ func PostFeed(ctx *Context) (out interface{}, err error) {
 }
 
 func GetFeed(ctx *Context) (out interface{}, err error) {
-	return
+	feed := new(types.Feed)
+	err = ctx.DB.C("feeds").FindId(bson.ObjectIdHex(ctx.Vars["feedid"])).One(feed)
+	return feed, err
 }
 
 func PutFeed(ctx *Context) (out interface{}, err error) {
@@ -91,6 +96,8 @@ func PutFeed(ctx *Context) (out interface{}, err error) {
 }
 
 func DelFeed(ctx *Context) (out interface{}, err error) {
+	update := bson.M{"$set": bson.M{"deleted": true}}
+	err = ctx.DB.C("feeds").UpdateId(bson.ObjectIdHex(ctx.Vars["feedid"]), update)
 	return
 }
 
