@@ -3,8 +3,8 @@ package web
 import (
 	"net/http"
 	"os"
-	"strings"
 
+	"github.com/golang/glog"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
@@ -20,42 +20,28 @@ func Handler(assetsDir string) http.Handler {
 		"Content-Type", "application/json",
 		"Content-Type", "application/json;charset=UTF-8",
 	}
+	glog.Infof("Unused headers: %+v", headers)
 
-	apiMap := map[string]APIFuncType{
-		"GET    /pubs":                                                  GetPubs,
-		"POST   /pubs":                                                  PostPub,
-		"GET    /pubs/{pubid:[a-f0-9]{24}}":                             GetPub,
-		"PUT    /pubs/{pubid:[a-f0-9]{24}}":                             PutPub,
-		"DELETE /pubs/{pubid:[a-f0-9]{24}}":                             DelPub,
-		"GET    /feeds":                                                 GetFeeds,
-		"POST   /feeds":                                                 PostFeed,
-		"GET    /feeds/{feedid:[a-f0-9]{24}}":                           GetFeed,
-		"PUT    /feeds/{feedid:[a-f0-9]{24}}":                           PutFeed,
-		"DELETE /feeds/{feedid:[a-f0-9]{24}}":                           DelFeed,
-		"GET    /articles":                                              GetArticles,
-		"POST   /articles":                                              PostArticle,
-		"GET    /articles/{articleid:[a-f0-9]{24}}":                     GetArticle,
-		"PUT    /articles/{articleid:[a-f0-9]{24}}":                     PutArticle,
-		"DELETE /articles/{articleid:[a-f0-9]{24}}":                     DelArticle,
-		"GET    /pubs/{pubid:[a-f0-9]{24}}/feeds":                       GetFeeds,
-		"POST   /pubs/{pubid:[a-f0-9]{24}}/feeds":                       PostFeed,
-		"GET    /pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}": GetFeed,
-		"PUT    /pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}": PutFeed,
-		"DELETE /pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}": DelFeed,
-	}
+	var (
+		article  = APIHandler{"GET": GetArticle, "PUT": PutArticle, "DELETE": DelArticle}
+		articles = APIHandler{"GET": GetArticles, "POST": PostArticle}
+		feed     = APIHandler{"GET": GetFeed, "PUT": PutFeed, "DELETE": DelFeed}
+		feeds    = APIHandler{"GET": GetFeeds, "POST": PostFeed}
+		pub      = APIHandler{"GET": GetPub, "PUT": PutPub, "DELETE": DelPub}
+		pubs     = APIHandler{"GET": GetPubs, "POST": PostPub}
+	)
 
-	api := router.PathPrefix("/api").Subrouter()
-	for req, f := range apiMap {
-		parts := strings.Fields(req)
-		r := api.Path(parts[1]).Methods(parts[0]).HandlerFunc(APIHandler(f))
-		switch parts[0] {
-		case "POST", "PUT":
-			r.Headers(headers...)
-		}
-	}
+	api := router.PathPrefix("/api/v1").Subrouter()
+	api.Handle("/pubs", pubs)
+	api.Handle("/pubs/{pubid:[a-f0-9]{24}}", pub)
+	api.Handle("/feeds", feeds)
+	api.Handle("/feeds/{feedid:[a-f0-9]{24}}", feed)
+	api.Handle("/pubs/{pubid:[a-f0-9]{24}}/feeds", feeds)
+	api.Handle("/articles", articles)
+	api.Handle("/articles/{articleid:[a-f0-9]{24}}", article)
 
 	router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(AssetsDir)))
 	router.HandleFunc("/", HandleIndex)
 
-	return handlers.CombinedLoggingHandler(os.Stdout, router)
+	return handlers.LoggingHandler(os.Stdout, router)
 }

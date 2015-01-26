@@ -2,60 +2,29 @@ package web
 
 import (
 	"encoding/json"
-	"github.com/golang/glog"
 	"gopkg.in/mgo.v2"
 	"io"
-	"net/http"
 	"time"
 
 	"github.com/300brand/ocular8/types"
-	"github.com/gorilla/mux"
+	"github.com/golang/glog"
 	"gopkg.in/mgo.v2/bson"
 )
 
-type APIContext struct {
+type Context struct {
 	Body io.ReadCloser
 	DB   *mgo.Database
 	Vars map[string]string
 }
-type APIFuncType func(*APIContext) (interface{}, error)
 
-func APIHandler(f APIFuncType) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		enc := json.NewEncoder(w)
-		ctx := &APIContext{
-			Body: r.Body,
-			DB:   mongo.Clone().DB(""),
-			Vars: mux.Vars(r),
-		}
-		defer ctx.DB.Session.Close()
-
-		out, err := f(ctx)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			enc.Encode(struct{ Error error }{err})
-			return
-		}
-		switch r.Method {
-		case "POST":
-			w.WriteHeader(http.StatusCreated)
-		}
-		if err = enc.Encode(out); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			enc.Encode(struct{ Error error }{err})
-		}
-	}
-}
-
-func GetPubs(ctx *APIContext) (out interface{}, err error) {
+func GetPubs(ctx *Context) (out interface{}, err error) {
 	limit := 20
 	pubs := make([]types.Pub, limit)
 	err = ctx.DB.C("pubs").Find(nil).Sort("name").Limit(limit).All(&pubs)
 	return pubs, err
 }
 
-func PostPub(ctx *APIContext) (out interface{}, err error) {
+func PostPub(ctx *Context) (out interface{}, err error) {
 	pub := new(types.Pub)
 	if err = json.NewDecoder(ctx.Body).Decode(pub); err != nil {
 		return
@@ -66,14 +35,14 @@ func PostPub(ctx *APIContext) (out interface{}, err error) {
 	return
 }
 
-func GetPub(ctx *APIContext) (out interface{}, err error) {
+func GetPub(ctx *Context) (out interface{}, err error) {
 	id := bson.ObjectIdHex(ctx.Vars["pubid"])
 	out = new(types.Pub)
 	err = ctx.DB.C("pubs").FindId(id).One(out)
 	return
 }
 
-func PutPub(ctx *APIContext) (out interface{}, err error) {
+func PutPub(ctx *Context) (out interface{}, err error) {
 	pub := new(types.Pub)
 	if err = json.NewDecoder(ctx.Body).Decode(pub); err != nil {
 		return
@@ -83,11 +52,11 @@ func PutPub(ctx *APIContext) (out interface{}, err error) {
 	return pub, err
 }
 
-func DelPub(ctx *APIContext) (out interface{}, err error) {
+func DelPub(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func GetFeeds(ctx *APIContext) (out interface{}, err error) {
+func GetFeeds(ctx *Context) (out interface{}, err error) {
 	limit := 20
 	feeds := make([]types.Feed, limit)
 	query := make(map[string]interface{})
@@ -98,7 +67,7 @@ func GetFeeds(ctx *APIContext) (out interface{}, err error) {
 	return feeds, err
 }
 
-func PostFeed(ctx *APIContext) (out interface{}, err error) {
+func PostFeed(ctx *Context) (out interface{}, err error) {
 	feed := new(types.Feed)
 	if err = json.NewDecoder(ctx.Body).Decode(feed); err != nil {
 		return
@@ -110,34 +79,34 @@ func PostFeed(ctx *APIContext) (out interface{}, err error) {
 	return feed, nil
 }
 
-func GetFeed(ctx *APIContext) (out interface{}, err error) {
+func GetFeed(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func PutFeed(ctx *APIContext) (out interface{}, err error) {
+func PutFeed(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func DelFeed(ctx *APIContext) (out interface{}, err error) {
+func DelFeed(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func GetArticles(ctx *APIContext) (out interface{}, err error) {
+func GetArticles(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func PostArticle(ctx *APIContext) (out interface{}, err error) {
+func PostArticle(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func GetArticle(ctx *APIContext) (out interface{}, err error) {
+func GetArticle(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func PutArticle(ctx *APIContext) (out interface{}, err error) {
+func PutArticle(ctx *Context) (out interface{}, err error) {
 	return
 }
 
-func DelArticle(ctx *APIContext) (out interface{}, err error) {
+func DelArticle(ctx *Context) (out interface{}, err error) {
 	return
 }
