@@ -11,9 +11,13 @@ type Pub struct {
 	Name        string
 	Homepage    string
 	Description string
-	Readership  int
-	NumFeeds    int
 	NumArticles int
+	NumFeeds    int
+	NumReaders  int
+	XPathBody   []string
+	XPathAuthor []string
+	XPathDate   []string
+	XPathTitle  []string
 	LastUpdate  time.Time
 }
 
@@ -21,5 +25,6 @@ type Feed struct {
 	Id           bson.ObjectId `bson:"_id"`
 	PubId        bson.ObjectId
 	Url          string
+	NumArticles  int
 	LastDownload time.Time
 }
