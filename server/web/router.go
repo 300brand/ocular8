@@ -32,14 +32,19 @@ func Handler(assetsDir string) http.Handler {
 	)
 
 	api := router.PathPrefix("/api/v1").Subrouter()
+	// Pubs
 	api.Handle("/pubs", pubs)
 	api.Handle("/pubs/{pubid:[a-f0-9]{24}}", pub)
+	// Feeds
 	api.Handle("/feeds", feeds)
 	api.Handle("/feeds/{feedid:[a-f0-9]{24}}", feed)
 	api.Handle("/pubs/{pubid:[a-f0-9]{24}}/feeds", feeds)
+	// Articles
 	api.Handle("/articles", articles)
+	api.Handle("/feeds/{feedid:[a-f0-9]{24}}/articles", articles)
+	api.Handle("/pubs/{pubid:[a-f0-9]{24}}/articles", articles)
 	api.Handle("/articles/{articleid:[a-f0-9]{24}}", article)
-
+	// Frontend
 	router.PathPrefix("/app/").Handler(http.FileServer(http.Dir(AssetsDir)))
 	router.HandleFunc("/", HandleIndex)
 
