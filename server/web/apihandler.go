@@ -73,6 +73,7 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	case "PUT":
 		w.WriteHeader(http.StatusNoContent)
+		return
 	case "DELETE":
 		w.WriteHeader(http.StatusNoContent)
 	}
