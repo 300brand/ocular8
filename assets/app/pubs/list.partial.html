@@ -5,15 +5,19 @@
 	<table class="table">
 		<thead>
 			<tr>
-				<th>Name</th>
 				<th>Id</th>
+				<th>Name</th>
+				<th>Feeds</th>
+				<th>Articles</th>
 				<th>Last Modified</th>
 			</tr>
 		</thead>
 		<tbody>
 			<tr ng-repeat="Pub in Pubs">
-				<td><a href="#/pubs/{{ Pub.Id }}">{{ Pub.Name }}</a></td>
 				<td><code>{{ Pub.Id }}</code></td>
+				<td><a href="#/pubs/{{ Pub.Id }}">{{ Pub.Name }}</a></td>
+				<td>{{ Pub.NumFeeds | number }}</td>
+				<td>{{ Pub.NumArticles | number }}</td>
 				<td>{{ Pub.LastUpdate | date }}</td>
 			</tr>
 		</tbody>

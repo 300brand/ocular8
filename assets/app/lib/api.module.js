@@ -5,7 +5,7 @@ angular.module("api", [
 ])
 
 .factory("Pubs", ["$resource", function($resource) {
-	return $resource("/api/v1/pubs/:pubid", null, {
+	return $resource("/api/v1/pubs/:pubid", { pubid: "@Id" }, {
 		"update": { method: "PUT" }
 	})
 }])

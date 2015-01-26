@@ -27,8 +27,21 @@ angular.module("adminPubs", [
 	"$routeParams",
 	"$scope",
 	"Pubs",
-	function($log, $rootScope, $routeParams, $scope, Pubs) {
+	"PubFeeds",
+	function($log, $rootScope, $routeParams, $scope, Pubs, PubFeeds) {
+		$scope.Title = "Update"
 		$scope.Pub = Pubs.get({ pubid: $routeParams.pubid })
+		$scope.Feeds = PubFeeds.query({ pubid: $routeParams.pubid })
+
+		$scope.save = function() {
+			$scope.Pub.$update(function(pub, headers) {
+				$log.log("pub:", pub, $scope.Pub)
+				// for (var i = 0; i < $scope.Feeds.length; i++) {
+				// 	$scope.Feeds[i].$save({ pubid: pub.Id })
+				// }
+			})
+		}
+
 	}
 ])
 
@@ -47,7 +60,8 @@ angular.module("adminPubs", [
 	"$rootScope",
 	"$scope",
 	"Pubs",
-	function($log, $rootScope, $scope, Pubs) {
+	"PubFeeds",
+	function($log, $rootScope, $scope, Pubs, PubFeeds) {
 		$scope.Title = "New"
 		$scope.Pub = new Pubs()
 		$scope.Feeds = []
@@ -69,6 +83,7 @@ angular.module("adminPubs", [
 		}
 		$scope.save = function() {
 			$scope.Pub.$save(function(pub, headers) {
+				$log.log("pub:", pub, $scope.Pub)
 				for (var i = 0; i < $scope.Feeds.length; i++) {
 					$scope.Feeds[i].$save({ pubid: pub.Id })
 				}
