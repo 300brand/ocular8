@@ -27,4 +27,5 @@ type Feed struct {
 	Url          string
 	NumArticles  int
 	LastDownload time.Time
+	NextDownload time.Time
 }
