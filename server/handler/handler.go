@@ -14,7 +14,7 @@ type Handler struct {
 	Frequency int      // How many times to run per hour
 	Name      string   // Handler name
 	NSQ       struct {
-		Consume []struct {
+		Consume struct {
 			Channel string // NSQ channel to listen on
 			Topic   string // NSQ topic to listen on
 		}
