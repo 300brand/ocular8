@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/golang/glog"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
@@ -15,12 +14,6 @@ func Handler(assetsDir string) http.Handler {
 	AssetsDir = assetsDir
 
 	router := mux.NewRouter()
-
-	headers := []string{
-		"Content-Type", "application/json",
-		"Content-Type", "application/json;charset=UTF-8",
-	}
-	glog.Infof("Unused headers: %+v", headers)
 
 	var (
 		article  = APIHandler{"GET": GetArticle, "PUT": PutArticle, "DELETE": DelArticle}
