@@ -19,7 +19,7 @@ type Context struct {
 func GetPubs(ctx *Context) (out interface{}, err error) {
 	limit := 20
 	pubs := make([]types.Pub, limit)
-	bson.M{"deleted": bson.M{"$exists": false}}
+	query := bson.M{"deleted": bson.M{"$exists": false}}
 	err = ctx.DB.C("pubs").Find(query).Sort("name").Limit(limit).All(&pubs)
 	return pubs, err
 }
@@ -97,7 +97,14 @@ func PutFeed(ctx *Context) (out interface{}, err error) {
 
 func DelFeed(ctx *Context) (out interface{}, err error) {
 	update := bson.M{"$set": bson.M{"deleted": true}}
-	err = ctx.DB.C("feeds").UpdateId(bson.ObjectIdHex(ctx.Vars["feedid"]), update)
+	id := bson.ObjectIdHex(ctx.Vars["feedid"])
+	err = ctx.DB.C("feeds").UpdateId(id, update)
+	if err != nil {
+		return
+	}
+	pubid := &struct{ PubId bson.ObjectId }{}
+	ctx.DB.C("feeds").FindId(id).Select(bson.M{"pubid": true}).One(pubid)
+	err = ctx.DB.C("pubs").UpdateId(pubid.PubId, bson.M{"$inc": bson.M{"numfeeds": -1}})
 	return
 }
 

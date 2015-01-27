@@ -39,6 +39,7 @@ func Handler(assetsDir string) http.Handler {
 	api.Handle("/feeds", feeds)
 	api.Handle("/feeds/{feedid:[a-f0-9]{24}}", feed)
 	api.Handle("/pubs/{pubid:[a-f0-9]{24}}/feeds", feeds)
+	api.Handle("/pubs/{pubid:[a-f0-9]{24}}/feeds/{feedid:[a-f0-9]{24}}", feed)
 	// Articles
 	api.Handle("/articles", articles)
 	api.Handle("/feeds/{feedid:[a-f0-9]{24}}/articles", articles)

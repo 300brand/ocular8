@@ -71,11 +71,9 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		w.WriteHeader(http.StatusCreated)
-	case "PUT":
+	case "PUT", "DELETE":
 		w.WriteHeader(http.StatusNoContent)
 		return
-	case "DELETE":
-		w.WriteHeader(http.StatusNoContent)
 	}
 	if err = json.NewEncoder(w).Encode(out); err != nil {
 		h.writeError(w, http.StatusInternalServerError, err)
