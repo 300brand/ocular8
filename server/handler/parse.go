@@ -8,7 +8,7 @@ import (
 )
 
 func ParseConfigs(path string) (handlerConfigs []Handler, err error) {
-	glog.V(2).Infof("Looking for handlers in '%s'", path)
+	glog.Infof("Looking for handlers in '%s'", path)
 	absHandlerPath, err := filepath.Abs(path)
 	if err != nil {
 		glog.Fatalf("filepath.Abs(%s): %s", path, err)
@@ -19,7 +19,7 @@ func ParseConfigs(path string) (handlerConfigs []Handler, err error) {
 	if err != nil {
 		glog.Fatalf("filepath.Glob(%s): %s", pattern, err)
 	}
-	glog.V(2).Infof("Found %d configs", len(handlerConfigPaths))
+	glog.Infof("Found %d configs", len(handlerConfigPaths))
 
 	handlerConfigs = make([]Handler, 0, len(handlerConfigPaths))
 	for _, configPath := range handlerConfigPaths {
@@ -37,7 +37,7 @@ func ParseConfigs(path string) (handlerConfigs []Handler, err error) {
 			continue
 		}
 		handlerConfig.SetDir(filepath.Dir(configPath))
-		glog.V(2).Infof("Adding handler config: %s", handlerConfig.Name)
+		glog.Infof("Adding handler config: %s", handlerConfig.Name)
 		handlerConfigs = append(handlerConfigs, *handlerConfig)
 	}
 	return
