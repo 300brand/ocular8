@@ -4,8 +4,15 @@
 		"-mongo",
 		"{{ .Config.Mongo }}",
 		"-nsqd",
-		"{{ .Config.Nsqd }}"
+		"{{ .Config.NsqdTCP }}",
+		"-usehttp",
+		"{{ .Config.NsqdHTTP }}"
 	],
+	"NSQ": {
+		"Produce": [
+			"feed.id.download"
+		]
+	},
 	"Frequency": 1,
 	"Name": "Enqueue Feeds"
 }
