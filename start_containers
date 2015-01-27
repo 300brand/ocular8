@@ -1,6 +1,6 @@
 #!/bin/bash
 # Docker Boots:
-docker run --name nsqd -p 4150:4150 -p 4151:4151 nsqio/nsqd
-docker run --name nsqadmin -p 4171:4171 nsqio/nsqadmin -nsqd-http-address=192.168.1.4:4151
-docker run --detach --publish 27017:27017 --name o8-mongo mongo
-docker run --rm -i -t -p 4001:4001 -p 7001:7001 microbox/etcd:latest -name config -cors '*' -cluster-active-size 1s
+docker run --detach --publish 4150:4150 --publish 4151:4151 --name nsqd     nsqio/nsqd
+docker run --detach --publish 4171:4171                     --name nsqadmin nsqio/nsqadmin -nsqd-http-address=192.168.1.4:4151
+docker run --detach --publish 27017:27017                   --name o8-mongo mongo
+docker run --detach --publish 4001:4001 --publish 7001:7001 --name etcd     microbox/etcd:latest -name config -cors '*' -cluster-active-size 1
