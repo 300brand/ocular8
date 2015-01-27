@@ -7,7 +7,8 @@ import (
 type ConfigType struct {
 	Etcd      string
 	Mongo     string
-	Nsqd      string
+	NsqdHTTP  string
+	NsqdTCP   string
 	Handlers  string
 	WebAssets string
 	WebListen string
@@ -16,7 +17,8 @@ type ConfigType struct {
 var Config = &ConfigType{
 	"http://127.0.0.1:4001",
 	"mongodb://127.0.0.1:27017/ocular8",
-	"127.0.0.1:9200",
+	"http://127.0.0.1:4151",
+	"127.0.0.1:4150",
 	".",
 	".",
 	":8080",
@@ -27,7 +29,8 @@ func init() {
 	flag.StringVar(&Config.WebAssets, "assets", Config.WebAssets, "Directory for web assets")
 	flag.StringVar(&Config.WebListen, "listen", Config.WebListen, "Web listen address")
 	flag.StringVar(&Config.Etcd, "etcd", Config.Etcd, "Etcd server for configs")
-	flag.StringVar(&Config.Nsqd, "nsqd", Config.Nsqd, "Nsqd server for queue")
+	flag.StringVar(&Config.NsqdHTTP, "nsqdhttp", Config.NsqdHTTP, "Nsqd server for queue (HTTP)")
+	flag.StringVar(&Config.NsqdTCP, "nsqdtcp", Config.NsqdTCP, "Nsqd server for queue (TCP)")
 	flag.StringVar(&Config.Mongo, "mongo", Config.Mongo, "Mongo server")
 }
 
