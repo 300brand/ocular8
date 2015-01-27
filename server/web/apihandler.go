@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -22,10 +23,11 @@ type APIFuncType func(*Context) (interface{}, error)
 type APIHandler map[string]APIFuncType
 
 type Context struct {
-	Body io.ReadCloser
-	DB   *mgo.Database
-	Vars map[string]string
-	W    http.ResponseWriter
+	Body   io.ReadCloser
+	DB     *mgo.Database
+	Values url.Values
+	Vars   map[string]string
+	W      http.ResponseWriter
 }
 
 var acceptHeaders = []string{
@@ -61,9 +63,11 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := &Context{
-		Body: r.Body,
-		DB:   mongo.Clone().DB(""),
-		Vars: mux.Vars(r),
+		Body:   r.Body,
+		DB:     mongo.Clone().DB(""),
+		Values: r.URL.Query(),
+		Vars:   mux.Vars(r),
+		W:      w,
 	}
 	defer ctx.DB.Session.Close()
 
