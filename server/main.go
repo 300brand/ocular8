@@ -84,6 +84,13 @@ func startPolling(stopChan chan bool, configs []handler.Handler) {
 func main() {
 	config.Parse()
 
+	if *doPrime {
+		if err := prime(config.Config.Mongo); err != nil {
+			glog.Fatalf("[prime] %s", err)
+		}
+		return
+	}
+
 	glog.Infof("Config %+v", config.Config)
 
 	// Listen for signals
