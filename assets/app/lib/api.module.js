@@ -11,7 +11,7 @@ angular.module("api", [
 }])
 
 .factory("PubFeeds", ["$resource", function($resource) {
-	return $resource("/api/v1/pubs/:pubid/feeds/:feedid", { feedid: "@Id", pubid: "PubId" }, {
+	return $resource("/api/v1/pubs/:pubid/feeds/:feedid", { feedid: "@Id", pubid: "@PubId" }, {
 		"update": { method: "PUT" }
 	})
 }])
