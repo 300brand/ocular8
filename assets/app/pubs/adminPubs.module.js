@@ -69,10 +69,21 @@ angular.module("adminPubs", [
 .controller("AdminPubsListController", [
 	"$log",
 	"$rootScope",
+	"$route",
+	"$routeParams",
 	"$scope",
 	"Pubs",
-	function($log, $rootScope, $scope, Pubs) {
-		$scope.Pubs = Pubs.query()
+	function($log, $rootScope, $route, $routeParams, $scope, Pubs) {
+		$scope.Params = {
+			query:  $routeParams.query,
+			limit:  $routeParams.limit || 20,
+			offset: $routeParams.offset || 0,
+			sort:   $routeParams.sort || "name"
+		}
+		$scope.Pubs = Pubs.query($scope.Params)
+		$scope.search = function() {
+			$route.updateParams($scope.Params)
+		}
 	}
 ])
 

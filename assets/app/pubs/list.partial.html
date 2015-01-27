@@ -1,6 +1,27 @@
 <div class="col-sm-12">
 	<h1>Publications</h1>
-	<p><a href="#/pubs/new" class="btn btn-primary">Add Publication</a></p>
+
+	<div class="row">
+		<div class="col-sm-8">
+			<form class="form-horizontal" ng-submit="search()">
+				<div class="input-group">
+					<input type="search" class="form-control" placeholder="Search Publication Name or ID" ng-model="Params.query" autofocus>
+					<span class="input-group-btn">
+						<button type="submit" class="btn btn-primary">
+							<span class="glyphicon glyphicon-search"></span>
+							Search
+						</button>
+					</span>
+				</div>
+			</form>
+		</div>
+		<div class="col-sm-offset-2 col-sm-2">
+			<a href="#/pubs/new" class="btn btn-primary btn-block">
+				<span class="glyphicon glyphicon-plus"></span>
+				Add Publication
+			</a>
+		</div>
+	</div>
 
 	<table class="table">
 		<thead>
@@ -9,6 +30,7 @@
 				<th>Name</th>
 				<th>Feeds</th>
 				<th>Articles</th>
+				<th>Readers</th>
 				<th>Last Modified</th>
 			</tr>
 		</thead>
@@ -18,6 +40,7 @@
 				<td><a href="#/pubs/{{ Pub.Id }}">{{ Pub.Name }}</a></td>
 				<td>{{ Pub.NumFeeds | number }}</td>
 				<td>{{ Pub.NumArticles | number }}</td>
+				<td>{{ Pub.NumReaders | number }}</td>
 				<td>{{ Pub.LastUpdate | date }}</td>
 			</tr>
 		</tbody>
