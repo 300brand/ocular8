@@ -2,17 +2,49 @@ package web
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/300brand/ocular8/types"
+	"github.com/golang/glog"
 	"gopkg.in/mgo.v2/bson"
 )
 
 func GetPubs(ctx *Context) (out interface{}, err error) {
-	limit := 20
-	pubs := make([]types.Pub, limit)
 	query := bson.M{"deleted": bson.M{"$exists": false}}
-	err = ctx.DB.C("pubs").Find(query).Sort("name").Limit(limit).All(&pubs)
+	if v := ctx.Values.Get("query"); v != "" {
+		if bson.IsObjectIdHex(v) {
+			query["_id"] = bson.ObjectIdHex(v)
+		} else {
+			query["name"] = bson.M{
+				"$regex":   v,
+				"$options": "i",
+			}
+		}
+	}
+
+	sort := "name"
+	if v := ctx.Values.Get("sort"); v != "" {
+		sort = v
+	}
+
+	limit := 20
+	if v := ctx.Values.Get("limit"); v != "" {
+		if i, _ := strconv.Atoi(v); i > 0 && i <= 1e4 {
+			limit = i
+		}
+	}
+
+	offset := 0
+	if v := ctx.Values.Get("offset"); v != "" {
+		if i, _ := strconv.Atoi(v); i > 0 {
+			offset = i
+		}
+	}
+
+	pubs := make([]types.Pub, limit)
+	glog.Infof("SORT: %s LIMIT: %d OFFSET: %d QUERY: %+v", sort, limit, offset, query)
+	err = ctx.DB.C("pubs").Find(query).Sort(sort).Limit(limit).Skip(offset).All(&pubs)
 	return pubs, err
 }
 
