@@ -2,19 +2,11 @@ package web
 
 import (
 	"encoding/json"
-	"gopkg.in/mgo.v2"
-	"io"
 	"time"
 
 	"github.com/300brand/ocular8/types"
 	"gopkg.in/mgo.v2/bson"
 )
-
-type Context struct {
-	Body io.ReadCloser
-	DB   *mgo.Database
-	Vars map[string]string
-}
 
 func GetPubs(ctx *Context) (out interface{}, err error) {
 	limit := 20

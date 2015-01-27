@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -20,7 +21,14 @@ type APIFuncType func(*Context) (interface{}, error)
 
 type APIHandler map[string]APIFuncType
 
-var Accept = []string{
+type Context struct {
+	Body io.ReadCloser
+	DB   *mgo.Database
+	Vars map[string]string
+	W    http.ResponseWriter
+}
+
+var acceptHeaders = []string{
 	"application/json",
 	"application/json;charset=UTF-8",
 }
@@ -46,7 +54,7 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if m := r.Method; m == "POST" || m == "PUT" {
 		ct := r.Header.Get("Content-Type")
-		if i := sort.SearchStrings(Accept, ct); i == len(Accept) || Accept[i] != ct {
+		if i := sort.SearchStrings(acceptHeaders, ct); i == len(acceptHeaders) || acceptHeaders[i] != ct {
 			h.writeError(w, http.StatusUnsupportedMediaType, nil)
 			return
 		}
