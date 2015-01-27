@@ -14,8 +14,11 @@ type Handler struct {
 	Frequency int      // How many times to run per hour
 	Name      string   // Handler name
 	NSQ       struct {
-		Channel string // NSQ channel to listen on
-		Topic   string // NSQ topic to listen on
+		Consume []struct {
+			Channel string // NSQ channel to listen on
+			Topic   string // NSQ topic to listen on
+		}
+		Produce []string // NSQ topic this handler produces to
 	}
 	Options map[string]interface{} // Additional configs sent to central config
 
@@ -67,11 +70,8 @@ func (h Handler) Run(data string) (err error) {
 	args := h.ParsedCmd(data)
 	glog.Infof("%q", args)
 
-	// if err = os.Chdir(h.dir); err != nil {
-	// 	return
-	// }
-
 	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = h.dir
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	if err = cmd.Start(); err != nil {
