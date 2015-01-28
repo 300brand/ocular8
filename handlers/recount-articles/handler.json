@@ -1,0 +1,9 @@
+{
+	"Command": [
+		"./recount-articles",
+		"-mongo",
+		"{{ .Config.Mongo }}",
+	],
+	"Frequency": 1,
+	"Name": "Recount NumArticles"
+}
