@@ -13,7 +13,7 @@ def process_feed(db, feed):
 	modified = feed.get('lastmodified', None)
 	doc = feedparser.parse(feed['url'], etag=etag, modified=modified)
 
-	print("STATUS", doc['status'])
+	print(feed['_id'], 'STATUS', doc['status'])
 
 	update = {
 		'bozo':         doc['bozo'],
@@ -33,14 +33,13 @@ def process_feed(db, feed):
 	db.feeds.update({ '_id': feed['_id'] }, { '$set': update })
 
 	if doc['status'] == 410 or doc['status'] == 304:
-		print(doc)
 		return
 
 	for entry in doc.entries:
 		try:
 			url, req = cleanurl.clean(entry['link'])
 		except urllib.error.HTTPError as err:
-			print("ERROR", err, entry['link'])
+			print(feed['_id'], 'ERROR', err, entry['link'])
 			db.article_errors.insert({
 				'url':    entry['link'],
 				'code':   err.code,
@@ -74,22 +73,17 @@ def process_feed(db, feed):
 			}
 		}
 		
-		print("ARTICLE", article['_id'])
+		print(feed['_id'], 'ARTICLE', article['_id'])
 		db.articles.insert(article)
 
 
 def main():
 	parser = argparse.ArgumentParser(description='Download feed and push new URLs into next queue')
-
 	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
 	parser.add_argument('id', help='Feed ObjectId', nargs='+')
-
 	args = parser.parse_args()
-	print(args.id)
 
-	client = pymongo.MongoClient(args.mongo)
-
-	db = client.get_default_database()
+	db = pymongo.MongoClient(args.mongo).get_default_database()
 	db.articles.ensure_index('url', unique=True)
 
 	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
