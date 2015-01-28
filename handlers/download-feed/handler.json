@@ -1,0 +1,18 @@
+{
+	"Command": [
+		"./download-feed",
+		"-mongo",
+		"{{ .Config.Mongo }}",
+		"{{ .Data }}"
+	],
+	"NSQ": {
+		"Consume": {
+			"Topic":   "feed.id.download",
+			"Channel": "download-feed"
+		},
+		"Produce": [
+			"article.url.download"
+		]
+	},
+	"Name": "Download Feeds"
+}
