@@ -1,85 +1,67 @@
 #!/usr/bin/env python
 import argparse
 import bson
-import cleanurl
+import bson.json_util
 import datetime
 import feedparser
 import pymongo
 import time
-import urllib.error
+import urllib.request
 
-def process_feed(db, feed):
+def process_feed(db, feed, nsq):
 	etag = feed.get('etag', None)
 	modified = feed.get('lastmodified', None)
 	doc = feedparser.parse(feed['url'], etag=etag, modified=modified)
 
-	print(feed['_id'], 'STATUS', doc['status'])
+	status = doc.get('status', 500)
+
+	print(feed['_id'], 'STATUS', status)
 
 	update = {
 		'bozo':         doc['bozo'],
 		'etag':         doc.get('etag', None),
 		'lastmodified': doc.get('modified', None),
-		'laststatus':   doc['status'],
+		'laststatus':   status,
 		'lastdownload': datetime.datetime.utcnow(),
 		'nextdownload': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
 	}
 	if 'updated' in doc:
 		t = datetime.datetime.utcfromtimestamp(time.mktime(doc['updated_parsed']))
 		update['updated'] = t
-	if doc['status'] == 301:
+	if status == 301:
 		update['originalurl'] = feed['url']
 		update['url'] = doc['href']
 
 	db.feeds.update({ '_id': feed['_id'] }, { '$set': update })
 
-	if doc['status'] == 410 or doc['status'] == 304:
+	if status in [ 304, 410, 500 ]:
 		return
 
+	items = []
 	for entry in doc.entries:
-		try:
-			url, req = cleanurl.clean(entry['link'])
-		except urllib.error.HTTPError as err:
-			print(feed['_id'], 'ERROR', err, entry['link'])
-			db.article_errors.insert({
-				'url':    entry['link'],
-				'code':   err.code,
-				'reason': err.reason
-			})
-			continue
-
-		if db.articles.find_one({ 'url': url }) is not None:
-			continue
-
 		published = entry.get('published_parsed', None)
 		if published is not None:
 			published = datetime.datetime.utcfromtimestamp(time.mktime(published))
 
-		html = req.read()
-
-		article = {
-			'_id':       bson.objectid.ObjectId(),
+		data = {
 			'feedid':    feed['_id'],
-			'pubid':     feed['pubid'],
 			'author':    entry.get('author', None),
 			'published': published,
 			'title':     entry.get('title', None),
-			'url':       url,
-			'html':      html,
-			'entry':     {
-				'author':    entry.get('author', None),
-				'published': published,
-				'title':     entry.get('title', None),
-				'url':       entry['link']
-			}
+			'url':       entry['link']
 		}
-		
-		print(feed['_id'], 'ARTICLE', article['_id'])
-		db.articles.insert(article)
 
+		items.append(bson.json_util.dumps(data))
+
+	payload_str = '\n'.join(items) + '\n'
+	payload = payload_str.encode('utf-8')
+	urllib.request.urlopen("%s/mpub?topic=article.url.download" % nsq, data=payload)
+	print(feed['_id'], 'SENT', len(items))
 
 def main():
 	parser = argparse.ArgumentParser(description='Download feed and push new URLs into next queue')
 	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
+	parser.add_argument('-nsqdhttp', help='NSQd HTTP address', default='http://localhost:4151')
 	parser.add_argument('id', help='Feed ObjectId', nargs='+')
 	args = parser.parse_args()
 
@@ -90,7 +72,7 @@ def main():
 	feeds = db.feeds.find({ '_id': { '$in': bson_ids } })
 
 	for feed in feeds:
-		process_feed(db, feed)
+		process_feed(db, feed, args.nsqdhttp)
 
 if __name__ == '__main__':
 	main()

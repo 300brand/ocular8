@@ -3,6 +3,8 @@
 		"./download-feed",
 		"-mongo",
 		"{{ .Config.Mongo }}",
+		"-nsqdhttp",
+		"{{ .Config.NsqdHTTP }}",
 		"{{ .Data }}"
 	],
 	"NSQ": {
