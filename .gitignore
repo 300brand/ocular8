@@ -1,1 +1,4 @@
 __pycache__
+handlers/enqueue-feeds/enqueue-feeds
+handlers/recount-articles/recount-articles
+o8-server
