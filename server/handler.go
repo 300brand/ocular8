@@ -12,7 +12,7 @@ import (
 
 func consumerHandler(h handler.Handler) (f nsq.HandlerFunc) {
 	return func(msg *nsq.Message) (err error) {
-		glog.Infof("%s: %q %s %d %s", h.Name, msg.Body, time.Unix(0, msg.Timestamp), msg.Attempts)
+		glog.Infof("%s: %s %d", h.Name, time.Unix(0, msg.Timestamp), msg.Attempts)
 		buf := bytes.NewBuffer(msg.Body)
 		return h.Run(buf.String())
 	}
@@ -79,6 +79,7 @@ func startConsumers(stopChan chan bool, configs []handler.Handler) {
 		if c := h.NSQ.Consume.Concurrent; c > concurrency {
 			concurrency = c
 		}
+		consumer.ChangeMaxInFlight(concurrency)
 		consumer.AddConcurrentHandlers(consumerHandler(h), concurrency)
 		if err := consumer.ConnectToNSQD(config.Config.NsqdTCP); err != nil {
 			glog.Fatalf("nsq.ConnectToNSQD(%s): %s", config.Config.NsqdTCP, err)
