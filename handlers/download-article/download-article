@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+import argparse
+import bson
+import bson.json_util
+import cleanurl
+import datetime
+import pymongo
+import time
+import urllib.error
+import urllib.request
+
+
+def process(db, feed, entry, nsq):
+	try:
+		url, req = cleanurl.clean(entry['url'])
+	except urllib.error.HTTPError as err:
+		print(feed['_id'], 'ERROR', err, entry['url'])
+		db.article_errors.insert({
+			'url':    entry['url'],
+			'code':   err.code,
+			'reason': err.reason
+		})
+		return
+
+	if db.articles.find_one({ 'url': url }) is not None:
+		print(feed['_id'], 'NONUNIQUE', url)
+		return
+
+	html = req.read()
+
+	article = {
+		'_id':       bson.objectid.ObjectId(),
+		'feedid':    feed['_id'],
+		'pubid':     feed['pubid'],
+		'author':    entry['author'],
+		'published': entry['published'],
+		'title':     entry['title'],
+		'url':       url,
+		'html':      html,
+		'entry':     {
+			'author':    entry['author'],
+			'published': entry['published'],
+			'title':     entry['title'],
+			'url':       entry['url']
+		}
+	}
+	
+	print(feed['_id'], 'ARTICLE', article['_id'])
+	db.articles.insert(article)
+
+def main():
+	parser = argparse.ArgumentParser(description='Download articles and push into queue for processing')
+	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
+	parser.add_argument('-nsqdhttp', help='NSQd HTTP address', default='http://localhost:4151')
+	parser.add_argument('data', help='Feed entry (JSON-encoded)', nargs='+')
+	args = parser.parse_args()
+
+	db = pymongo.MongoClient(args.mongo).get_default_database()
+	for data in args.data:
+		entry = bson.json_util.loads(data)
+		feed = db.feeds.find_one(entry['feedid'])
+		process(db, feed, entry, args.nsqdhttp)
+
+
+if __name__ == "__main__":
+	main()

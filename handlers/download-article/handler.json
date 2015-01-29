@@ -1,0 +1,21 @@
+{
+	"Command": [
+		"./download-article",
+		"-mongo",
+		"{{ .Config.Mongo }}",
+		"-nsqdhttp",
+		"{{ .Config.NsqdHTTP }}",
+		"{{ .Data }}"
+	],
+	"NSQ": {
+		"Consume": {
+			"Topic":      "article.json.download",
+			"Channel":    "download-article",
+			"Concurrent": 4
+		},
+		"Produce": [
+			"article.id.process"
+		]
+	},
+	"Name": "Download Articles"
+}
