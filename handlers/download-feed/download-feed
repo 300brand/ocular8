@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import argparse
 import bson
 import bson.json_util
@@ -39,6 +39,10 @@ def process_feed(db, feed, nsq):
 
 	items = []
 	for entry in doc.entries:
+		if 'link' not in entry:
+			print(feed['_id'], 'NO ENTRY LINK')
+			continue
+
 		published = entry.get('published_parsed', None)
 		if published is not None:
 			published = datetime.datetime.utcfromtimestamp(time.mktime(published))
