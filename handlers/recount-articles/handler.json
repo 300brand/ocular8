@@ -4,6 +4,6 @@
 		"-mongo",
 		"{{ .Config.Mongo }}"
 	],
-	"Frequency": 10,
+	"Frequency": 12,
 	"Name": "Recount NumArticles"
 }

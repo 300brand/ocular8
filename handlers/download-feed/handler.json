@@ -9,8 +9,9 @@
 	],
 	"NSQ": {
 		"Consume": {
-			"Topic":   "feed.id.download",
-			"Channel": "download-feed"
+			"Topic":      "feed.id.download",
+			"Channel":    "download-feed",
+			"Concurrent": 2
 		},
 		"Produce": [
 			"article.json.download"

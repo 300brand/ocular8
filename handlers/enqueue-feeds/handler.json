@@ -13,6 +13,6 @@
 			"feed.id.download"
 		]
 	},
-	"Frequency": 1,
+	"Frequency": 20,
 	"Name": "Enqueue Feeds"
 }
