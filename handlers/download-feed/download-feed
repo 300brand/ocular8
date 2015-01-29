@@ -55,7 +55,7 @@ def process_feed(db, feed, nsq):
 
 	payload_str = '\n'.join(items) + '\n'
 	payload = payload_str.encode('utf-8')
-	urllib.request.urlopen("%s/mpub?topic=article.url.download" % nsq, data=payload)
+	urllib.request.urlopen("%s/mpub?topic=article.json.download" % nsq, data=payload)
 	print(feed['_id'], 'SENT', len(items))
 
 def main():
@@ -66,7 +66,6 @@ def main():
 	args = parser.parse_args()
 
 	db = pymongo.MongoClient(args.mongo).get_default_database()
-	db.articles.ensure_index('url', unique=True)
 
 	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
 	feeds = db.feeds.find({ '_id': { '$in': bson_ids } })

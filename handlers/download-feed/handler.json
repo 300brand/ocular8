@@ -13,7 +13,7 @@
 			"Channel": "download-feed"
 		},
 		"Produce": [
-			"article.url.download"
+			"article.json.download"
 		]
 	},
 	"Name": "Download Feeds"
