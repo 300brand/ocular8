@@ -4,7 +4,8 @@ import urllib.parse
 import urllib.request
 
 def clean(url):
-	req = _resolve(url)
+	quoted = urllib.parse.quote(url, encoding='utf-8', safe='/:')
+	req = _resolve(quoted)
 	return (_cleanquery(req.geturl()), req)
 
 def _cleanquery(url):
