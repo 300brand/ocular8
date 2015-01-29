@@ -75,7 +75,11 @@ func startConsumers(stopChan chan bool, configs []handler.Handler) {
 		if err != nil {
 			glog.Fatalf("nsq.NewConsumer(%s, %s, config): %s", topic, channel, err)
 		}
-		consumer.AddHandler(consumerHandler(h))
+		concurrency := 1
+		if c := h.NSQ.Consume.Concurrent; c > concurrency {
+			concurrency = c
+		}
+		consumer.AddConcurrentHandlers(consumerHandler(h), concurrency)
 		if err := consumer.ConnectToNSQD(config.Config.NsqdTCP); err != nil {
 			glog.Fatalf("nsq.ConnectToNSQD(%s): %s", config.Config.NsqdTCP, err)
 		}

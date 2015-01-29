@@ -15,8 +15,9 @@ type Handler struct {
 	Name      string   // Handler name
 	NSQ       struct {
 		Consume struct {
-			Channel string // NSQ channel to listen on
-			Topic   string // NSQ topic to listen on
+			Channel    string // NSQ channel to listen on
+			Topic      string // NSQ topic to listen on
+			Concurrent int    // Number of handlers to register
 		}
 		Produce []string // NSQ topic this handler produces to
 	}
