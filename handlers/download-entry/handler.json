@@ -1,6 +1,6 @@
 {
 	"Command": [
-		"./download-article",
+		"./download-entry",
 		"-mongo",
 		"{{ .Config.Mongo }}",
 		"-nsqdhttp",
@@ -9,13 +9,13 @@
 	],
 	"NSQ": {
 		"Consume": {
-			"Topic":      "article.json.download",
-			"Channel":    "download-article",
+			"Topic":      "entry.id.download",
+			"Channel":    "download-entry",
 			"Concurrent": 4
 		},
 		"Produce": [
 			"article.id.process"
 		]
 	},
-	"Name": "Download Articles"
+	"Name": "Download Feed Entry"
 }
