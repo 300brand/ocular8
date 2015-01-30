@@ -49,10 +49,6 @@ def process(db, feed, nsq):
 			print(feed['_id'], 'NO ENTRY LINK')
 			continue
 
-		published = entry.get('published_parsed', None)
-		if published is not None:
-			published = datetime.datetime.utcfromtimestamp(time.mktime(published))
-
 		entry['_id'] = bson.objectid.ObjectId()
 		entry['feedid'] = feed['_id']
 		entry['pubid'] = feed['pubid']
