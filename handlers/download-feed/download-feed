@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 import argparse
 import bson
-import bson.json_util
 import datetime
 import feedparser
 import pymongo
 import time
 import urllib.request
 
-def process_feed(db, feed, nsq):
+def process(db, feed, nsq):
 	etag = feed.get('etag', None)
 	modified = feed.get('lastmodified', None)
 	doc = feedparser.parse(feed['url'], etag=etag, modified=modified)
@@ -17,7 +16,7 @@ def process_feed(db, feed, nsq):
 
 	print(feed['_id'], 'STATUS', status)
 
-	update = {
+	sets = {
 		'bozo':         doc['bozo'],
 		'etag':         doc.get('etag', None),
 		'lastmodified': doc.get('modified', None),
@@ -25,19 +24,26 @@ def process_feed(db, feed, nsq):
 		'lastdownload': datetime.datetime.utcnow(),
 		'nextdownload': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
 	}
-	if 'updated' in doc:
+	if 'updated_parsed' in doc and doc['updated_parsed'] is not None:
 		t = datetime.datetime.utcfromtimestamp(time.mktime(doc['updated_parsed']))
-		update['updated'] = t
+		sets['updated'] = t
 	if status == 301:
-		update['originalurl'] = feed['url']
-		update['url'] = doc['href']
+		sets['originalurl'] = feed['url']
+		sets['url'] = doc['href']
 
-	db.feeds.update({ '_id': feed['_id'] }, { '$set': update })
+	update = {
+		'$set': sets,
+		'$inc': {
+			'downloads': 1
+		}
+	}
+
+	db.feeds.update({ '_id': feed['_id'] }, update)
 
 	if status in [ 304, 410, 500 ]:
 		return
 
-	items = []
+	ids = []
 	for entry in doc.entries:
 		if 'link' not in entry:
 			print(feed['_id'], 'NO ENTRY LINK')
@@ -47,20 +53,16 @@ def process_feed(db, feed, nsq):
 		if published is not None:
 			published = datetime.datetime.utcfromtimestamp(time.mktime(published))
 
-		data = {
-			'feedid':    feed['_id'],
-			'author':    entry.get('author', None),
-			'published': published,
-			'title':     entry.get('title', None),
-			'url':       entry['link']
-		}
+		entry['_id'] = bson.objectid.ObjectId()
+		entry['feedid'] = feed['_id']
+		entry['pubid'] = feed['pubid']
 
-		items.append(bson.json_util.dumps(data))
+		db.entries.insert(entry)
+		ids.append(str(entry['_id']))
 
-	payload_str = '\n'.join(items) + '\n'
-	payload = payload_str.encode('utf-8')
-	urllib.request.urlopen("%s/mpub?topic=article.json.download" % nsq, data=payload)
-	print(feed['_id'], 'SENT', len(items))
+	payload = ('\n'.join(ids) + '\n').encode('utf-8')
+	urllib.request.urlopen("%s/mpub?topic=entry.id.download" % nsq, data=payload)
+	print(feed['_id'], 'SENT', len(ids))
 
 def main():
 	parser = argparse.ArgumentParser(description='Download feed and push new URLs into next queue')
@@ -73,9 +75,8 @@ def main():
 
 	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
 	feeds = db.feeds.find({ '_id': { '$in': bson_ids } })
-
 	for feed in feeds:
-		process_feed(db, feed, args.nsqdhttp)
+		process(db, feed, args.nsqdhttp)
 
 if __name__ == '__main__':
 	main()

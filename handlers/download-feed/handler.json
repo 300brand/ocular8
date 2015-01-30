@@ -14,7 +14,7 @@
 			"Concurrent": 2
 		},
 		"Produce": [
-			"article.json.download"
+			"entry.id.download"
 		]
 	},
 	"Name": "Download Feeds"
