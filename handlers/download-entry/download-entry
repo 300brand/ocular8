@@ -14,7 +14,7 @@ def process(db, entry, nsq):
 	try:
 		url, req = cleanurl.clean(entry['link'])
 	except urllib.error.HTTPError as err:
-		print(feed['_id'], 'HTTPERROR', err, entry['link'])
+		print(entry['feedid'], 'HTTPERROR', err, entry['link'])
 		db.article_errors.insert({
 			'url':    entry['link'],
 			'type':   'HTTPError',
@@ -24,9 +24,9 @@ def process(db, entry, nsq):
 		db.entries.remove(entry['_id'], multi=False)
 		return
 	except urllib.error.URLError as err:
-		print(feed['_id'], 'URLERROR', err, entry['link'])
+		print(entry['feedid'], 'URLERROR', err, entry['link'])
 		db.article_errors.insert({
-			'url':    entry['url'],
+			'url':    entry['link'],
 			'type':   'URLError',
 			'reason': str(err.reason)
 		})
@@ -34,7 +34,7 @@ def process(db, entry, nsq):
 		return
 
 	if db.articles.find_one({ 'url': url }) is not None:
-		print(feed['_id'], 'NONUNIQUE', url)
+		print(entry['feedid'], 'NONUNIQUE', url)
 		return
 
 	html = req.read()
