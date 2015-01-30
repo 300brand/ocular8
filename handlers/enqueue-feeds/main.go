@@ -49,11 +49,12 @@ func main() {
 		},
 	}
 	sel := bson.M{"_id": true}
+	sort := "lastdownload"
 	ids := make([]struct {
 		Id bson.ObjectId `bson:"_id"`
 	}, 0, *limit)
 
-	if err = s.DB("").C("feeds").Find(query).Limit(*limit).Select(sel).All(&ids); err != nil {
+	if err = s.DB("").C("feeds").Find(query).Limit(*limit).Select(sel).Sort(sort).All(&ids); err != nil {
 		glog.Fatalf("mgo.Find: %s", err)
 	}
 
