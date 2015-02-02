@@ -16,13 +16,17 @@ def process(db, feed, nsq):
 
 	print(feed['_id'], 'STATUS', status)
 
+	nextdownload = None
+	if doc['bozo'] == 0:
+		nextdownload = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+
 	sets = {
 		'bozo':         doc['bozo'],
 		'etag':         doc.get('etag', None),
 		'lastmodified': doc.get('modified', None),
 		'laststatus':   status,
 		'lastdownload': datetime.datetime.utcnow(),
-		'nextdownload': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+		'nextdownload': nextdownload
 	}
 	if 'updated_parsed' in doc and doc['updated_parsed'] is not None:
 		t = datetime.datetime.utcfromtimestamp(time.mktime(doc['updated_parsed']))
@@ -48,6 +52,10 @@ def process(db, feed, nsq):
 		if 'link' not in entry:
 			print(feed['_id'], 'NO ENTRY LINK')
 			continue
+
+		if db.entries.find_one({ 'link': entry['link'] }) is not None:
+			print(entry['feedid'], 'NONUNIQUE', entry['link'])
+			return
 
 		entry['_id'] = bson.objectid.ObjectId()
 		entry['feedid'] = feed['_id']
