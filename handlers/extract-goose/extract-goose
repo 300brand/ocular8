@@ -6,7 +6,7 @@ import lxml
 import pymongo
 import bson
 
-def process_goose(db, article):
+def process(db, article, nsq):
 	if article['html'] is None or len(article['html']) == 0:
 		print(article['_id'], "NO HTML")
 		return
@@ -51,7 +51,11 @@ def main():
 	for id in bson_ids:
 		article = db.articles.find_one(id)
 		try:
-			process_goose(db, article)
+			process(db, article, args.nsqdhttp)
+
+			payload = str(article['_id']).encode('utf-8')
+			urllib.request.urlopen("%s/pub?topic=article.id.elastic" % nsq, data=payload)
+			print(article['_id'], 'SENT')
 		except Exception as err:
 			print id, str(err)
 
