@@ -76,11 +76,11 @@ def main():
 					{ 'xpathtitle':  { '$not': { '$size': 0 } } }
 				]
 			}
-			print q
 			pub = db.pubs.find_one(q)
 			if pub is not None:
 				topic = 'article.id.extract.xpath'
 
+			print id, topic
 			urllib.urlopen("%s/pub?topic=%s" % (args.nsqdhttp, topic), data=payload)
 		except Exception as err:
 			print id, str(err)
