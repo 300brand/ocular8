@@ -1,0 +1,21 @@
+{
+	"Command": [
+		"./extract-xpath",
+		"-mongo",
+		"{{ .Config.Mongo }}",
+		"-nsqdhttp",
+		"{{ .Config.NsqdHTTP }}",
+		"{{ .Data }}"
+	],
+	"NSQ": {
+		"Consume": {
+			"Topic":      "article.id.extract.xpath",
+			"Channel":    "extract-xpath",
+			"Concurrent": 20
+		},
+		"Produce": [
+			"article.id.elastic"
+		]
+	},
+	"Name": "Extract with Pub XPaths"
+}
