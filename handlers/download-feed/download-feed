@@ -54,7 +54,7 @@ def process(db, feed, nsq):
 			continue
 
 		if db.entries.find_one({ 'link': entry['link'] }) is not None:
-			print(entry['feedid'], 'NONUNIQUE', entry['link'])
+			print(feed['_id'], 'NONUNIQUE', entry['link'])
 			return
 
 		entry['_id'] = bson.objectid.ObjectId()
