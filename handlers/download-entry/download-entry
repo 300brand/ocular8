@@ -68,6 +68,11 @@ def process(db, entry, nsq):
 	db.articles.insert(article)
 	db.entries.remove(entry['_id'], multi=False)
 
+	payload = str(entry['_id']).encode('utf-8')
+	urllib.request.urlopen("%s/pub?topic=article.id.extract.goose" % nsq, data=payload)
+	print(entry['_id'], 'SENT')
+
+
 def main():
 	parser = argparse.ArgumentParser(description='Download articles and push into queue for processing')
 	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
