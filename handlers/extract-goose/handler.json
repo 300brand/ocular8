@@ -1,6 +1,6 @@
 {
 	"Command": [
-		"./extract-default",
+		"./extract-goose",
 		"-mongo",
 		"{{ .Config.Mongo }}",
 		"-nsqdhttp",
@@ -9,8 +9,8 @@
 	],
 	"NSQ": {
 		"Consume": {
-			"Topic":      "article.id.extract.default",
-			"Channel":    "extract-default",
+			"Topic":      "article.id.extract.goose",
+			"Channel":    "extract-goose",
 			"Concurrent": 20
 		},
 		"Produce": [

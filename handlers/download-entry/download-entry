@@ -69,7 +69,7 @@ def process(db, entry, nsq):
 	db.entries.remove(entry['_id'], multi=False)
 
 	payload = str(entry['_id']).encode('utf-8')
-	urllib.request.urlopen("%s/pub?topic=article.id.extract.default" % nsq, data=payload)
+	urllib.request.urlopen("%s/pub?topic=article.id.extract.goose" % nsq, data=payload)
 	print(entry['_id'], 'SENT')
 
 
