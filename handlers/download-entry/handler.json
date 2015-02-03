@@ -14,7 +14,7 @@
 			"Concurrent": 4
 		},
 		"Produce": [
-			"article.id.extract.goose"
+			"article.id.extract.default"
 		]
 	},
 	"Name": "Download Feed Entry"
