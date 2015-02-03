@@ -1,0 +1,22 @@
+{
+	"Command": [
+		"./extract-goose",
+		"-mongo",
+		"{{ .Config.Mongo }}",
+		"-nsqdhttp",
+		"{{ .Config.NsqdHTTP }}",
+		"{{ .Data }}"
+	],
+	"NSQ": {
+		"Consume": {
+			"Topic":      "article.id.extract.goose",
+			"Channel":    "extract-goose",
+			"Concurrent": 20
+		},
+		"Produce": [
+			"article.id.elastic",
+			"article.id.extract.xpath"
+		]
+	},
+	"Name": "Extract with Goose"
+}

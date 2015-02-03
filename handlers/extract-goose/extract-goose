@@ -1,28 +1,33 @@
 #!/usr/bin/env python2
 import argparse
+import bson
 import dateutil.parser
 import goose
 import lxml
 import pymongo
-import bson
+import urllib
 
-def process(db, article, nsq):
-	if article['html'] is None or len(article['html']) == 0:
-		print(article['_id'], "NO HTML")
-		return
+def process(db, article):
+	if 'html' not in article or article['html'] is None or len(article['html']) == 0:
+		print article['_id'], "NO HTML"
+		return False
 
 	g = goose.Goose({
 		'enable_image_fetching':False
 	})
 	a = g.extract(raw_html=article['html'])
 
+	bodyhtml = ''
+	if a.top_node is not None:
+		bodyhtml = lxml.etree.tostring(a.top_node, pretty_print=False)
+
 	update = {
 		'$set': {
-			'bodyhtml': lxml.etree.tostring(a.top_node, pretty_print=False),
+			'bodyhtml': bodyhtml,
 			'bodytext': a.cleaned_text,
 			'goose': {
 				'authors': a.authors,
-				'published': dateutil.parser.parse(a.publish_date),
+				'published': a.publish_date,
 				'title': a.title
 			}
 		}
@@ -39,6 +44,8 @@ def process(db, article, nsq):
 
 	db.articles.update({ '_id': article['_id'] }, update, multi=False)
 
+	return True
+
 def main():
 	parser = argparse.ArgumentParser(description='Download articles and push into queue for processing')
 	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
@@ -49,13 +56,29 @@ def main():
 	db = pymongo.MongoClient(args.mongo).get_default_database()
 	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
 	for id in bson_ids:
-		article = db.articles.find_one(id)
 		try:
-			process(db, article, args.nsqdhttp)
+			article = db.articles.find_one(id)
+			if not process(db, article):
+				continue
 
 			payload = str(article['_id']).encode('utf-8')
-			urllib.request.urlopen("%s/pub?topic=article.id.elastic" % nsq, data=payload)
-			print(article['_id'], 'SENT')
+			topic = 'article.id.elastic'
+
+			q = {
+				'_id': article['pubid'],
+				'$or': [
+					{ 'xpathauthor': { '$not': { '$size': 0 } } },
+					{ 'xpathbody':   { '$not': { '$size': 0 } } },
+					{ 'xpathdate':   { '$not': { '$size': 0 } } },
+					{ 'xpathtitle':  { '$not': { '$size': 0 } } }
+				]
+			}
+			print q
+			pub = db.pubs.find_one(q)
+			if pub is not None:
+				topic = 'article.id.extract.xpath'
+
+			urllib.urlopen("%s/pub?topic=%s" % (args.nsqdhttp, topic), data=payload)
 		except Exception as err:
 			print id, str(err)
 
