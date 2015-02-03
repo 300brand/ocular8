@@ -1,0 +1,41 @@
+#!/usr/bin/env python2
+import argparse
+import goose
+import pymongo
+import bson
+import readability.readability
+
+def process_readability(article):
+	if article['html'] is None or len(article['html']) < 512:
+		print(article['_id'], "NO HTML")
+		return
+
+	doc = readability.Document(article['html'])
+	print(article['_id'], doc.summary(True))
+
+def process_goose(article):
+	if article['html'] is None or len(article['html']) == 0:
+		print(article['_id'], "NO HTML")
+		return
+
+	g = goose.Goose({
+		'enable_image_fetching':False
+	})
+	body = g.extract(raw_html=article['html'])
+	print(article['_id'], body.top_node, body.cleaned_text[:50])
+
+def main():
+	parser = argparse.ArgumentParser(description='Download articles and push into queue for processing')
+	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
+	parser.add_argument('-nsqdhttp', help='NSQd HTTP address', default='http://localhost:4151')
+	parser.add_argument('id', help='feed_article IDs', nargs='+')
+	args = parser.parse_args()
+
+	db = pymongo.MongoClient(args.mongo).get_default_database()
+	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
+	for id in bson_ids:
+		article = db.articles.find_one(id)
+		process_goose(article)
+
+if __name__ == '__main__':
+	main()
