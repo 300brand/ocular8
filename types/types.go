@@ -29,3 +29,29 @@ type Feed struct {
 	LastDownload time.Time
 	NextDownload time.Time
 }
+
+type Article struct {
+	Id        bson.ObjectId `bson:"_id"`
+	FeedId    bson.ObjectId
+	PubId     bson.ObjectId
+	Url       string
+	Title     string
+	Author    string
+	Published time.Time
+	BodyText  string
+	BodyHTML  string
+	HTML      []byte
+	LoadTime  time.Duration
+	Entry     struct {
+		Url       string
+		Title     string
+		Author    string
+		Published time.Time
+	}
+	Goose struct {
+		BodyXPath string
+		Title     string
+		Published time.Time
+		Authors   []string
+	}
+}
