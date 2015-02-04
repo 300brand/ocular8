@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
-	"github.com/300brand/ocular8/server/config"
 	"time"
 
+	"github.com/300brand/ocular8/server/config"
 	"github.com/300brand/ocular8/server/handler"
 	"github.com/bitly/go-nsq"
 	"github.com/golang/glog"
