@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	"github.com/300brand/ocular8/types"
-	"gopkg.in/mgo.v2"
 	"net/http"
 	"time"
 
+	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
+	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -29,6 +29,7 @@ func prime(mongoDSN string) (err error) {
 	cp := db.C("pubs")
 	cf := db.C("feeds")
 
+	glog.Infof("Empty pubs and feeds collections")
 	cp.RemoveAll(nil)
 	cf.RemoveAll(nil)
 
@@ -57,6 +58,7 @@ func prime(mongoDSN string) (err error) {
 	if err != nil {
 		return
 	}
+	glog.Infof("Publication.GetAll from %s", *primeRPC)
 	resp, err := http.Post(*primeRPC, "application/json", bytes.NewReader(b))
 	if err != nil {
 		return
