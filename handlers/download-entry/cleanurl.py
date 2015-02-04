@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import urllib.parse
 import urllib.request
 
 def clean(url):
-	quoted = urllib.parse.quote(url, encoding='utf-8', safe='/:')
-	req = _resolve(quoted)
+	req = _resolve(url)
 	return (_cleanquery(req.geturl()), req)
 
 def _cleanquery(url):
