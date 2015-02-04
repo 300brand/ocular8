@@ -3,38 +3,47 @@ import argparse
 import bson
 import cleanurl
 import datetime
+import logging
 import pymongo
 import time
 import urllib.error
 import urllib.request
 
+logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
 
 def process(db, entry, nsq):
+	prefix = 'P:%s F:%s E:%s' % (entry['pubid'], entry['feedid'], entry['_id'])
+
 	start = datetime.datetime.now()
 	try:
+		logging.debug('%s Entry Link: %s', prefix, entry['link'])
 		url, req = cleanurl.clean(entry['link'])
+		logging.debug('%s Clean URL:  %s', prefix, url)
 	except urllib.error.HTTPError as err:
-		print(entry['feedid'], 'HTTPERROR', err, entry['link'])
+		logging.error('%s HTTPError: %d %s - %s', prefix, err.code, err.reason, entry['link'])
 		db.article_errors.insert({
 			'url':    entry['link'],
 			'type':   'HTTPError',
 			'code':   err.code,
-			'reason': err.reason
+			'reason': err.reason,
+			'entry':  entry
 		})
 		db.entries.remove(entry['_id'], multi=False)
 		return
 	except urllib.error.URLError as err:
-		print(entry['feedid'], 'URLERROR', err, entry['link'])
+		logging.error('%s URLError: %d %s - %s', prefix, err.reason[0], err.reason[1], entry['link'])
 		db.article_errors.insert({
 			'url':    entry['link'],
 			'type':   'URLError',
-			'reason': str(err.reason)
+			'code':   err.reason[0],
+			'reason': err.reason[1],
+			'entry':  entry
 		})
 		db.entries.remove(entry['_id'], multi=False)
 		return
 
 	if db.articles.find_one({ 'url': url }) is not None:
-		print(entry['feedid'], 'NONUNIQUE', url)
+		logging.warning('%s Not unique: %s', prefix, url)
 		return
 
 	html = req.read()
@@ -64,14 +73,19 @@ def process(db, entry, nsq):
 		}
 	}
 	
-	print(entry['feedid'], 'ARTICLE', article['_id'])
+	logging.info('%s Moving to articles collection', prefix)
 	db.articles.insert(article)
 	db.entries.remove(entry['_id'], multi=False)
 
 	payload = str(entry['_id']).encode('utf-8')
-	urllib.request.urlopen("%s/pub?topic=article.id.extract.goose" % nsq, data=payload)
-	print(entry['_id'], 'SENT')
-
+	topic = 'article.id.extract.goose'
+	nsqurl = '%s/pub?topic=%s' % (nsq, topic)
+	try:
+		urllib.request.urlopen(nsqurl, data=payload)
+	except Exception as err:
+		logging.error('%s Error while sending data to %s: %s', prefix, nsqurl, err)
+	else:
+		logging.info('%s Sent to %s', prefix, topic)
 
 def main():
 	parser = argparse.ArgumentParser(description='Download articles and push into queue for processing')
@@ -85,7 +99,7 @@ def main():
 	for id in bson_ids:
 		entry = db.entries.find_and_modify({ '_id': id }, update={ '$inc': { 'attempts': 1 } })
 		if entry is None:
-			print("NOT FOUND", id)
+			logging.error('%s Not found', id)
 			continue
 		process(db, entry, args.nsqdhttp)
 
