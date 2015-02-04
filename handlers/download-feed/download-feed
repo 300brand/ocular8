@@ -3,18 +3,23 @@ import argparse
 import bson
 import datetime
 import feedparser
+import logging
 import pymongo
 import time
 import urllib.request
 
+logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
+
 def process(db, feed, nsq):
+	prefix = 'P:%s F:%s' % (feed['pubid'], feed['_id'])
+
 	etag = feed.get('etag', None)
 	modified = feed.get('lastmodified', None)
 	doc = feedparser.parse(feed['url'], etag=etag, modified=modified)
 
 	status = doc.get('status', 500)
 
-	print(feed['_id'], 'STATUS', status)
+	logging.info('%s STATUS %d', prefix, status)
 
 	nextdownload = None
 	if doc['bozo'] == 0:
@@ -32,6 +37,7 @@ def process(db, feed, nsq):
 		t = datetime.datetime.utcfromtimestamp(time.mktime(doc['updated_parsed']))
 		sets['updated'] = t
 	if status == 301:
+		logging.info('%s Updating feed URL from %s to %s', prefix, feed['url'], doc['href'])
 		sets['originalurl'] = feed['url']
 		sets['url'] = doc['href']
 
@@ -45,28 +51,36 @@ def process(db, feed, nsq):
 	db.feeds.update({ '_id': feed['_id'] }, update)
 
 	if status in [ 304, 410, 500 ]:
+		logging.warning('%s Bailing from bad status: %d', prefix, status)
 		return
 
 	ids = []
 	for entry in doc.entries:
 		if 'link' not in entry:
-			print(feed['_id'], 'NO ENTRY LINK')
+			logging.error('%s No link field in entry', prefix)
 			continue
 
 		if db.entries.find_one({ 'link': entry['link'] }) is not None:
-			print(feed['_id'], 'NONUNIQUE', entry['link'])
-			return
+			logging.warning('%s URL not unique: %s', prefix, entry['link'])
+			continue
 
 		entry['_id'] = bson.objectid.ObjectId()
 		entry['feedid'] = feed['_id']
 		entry['pubid'] = feed['pubid']
+		logging.info('%s E:%s New entry', prefix, entry['_id'])
 
 		db.entries.insert(entry)
 		ids.append(str(entry['_id']))
 
 	payload = ('\n'.join(ids) + '\n').encode('utf-8')
-	urllib.request.urlopen("%s/mpub?topic=entry.id.download" % nsq, data=payload)
-	print(feed['_id'], 'SENT', len(ids))
+	topic = "entry.id.download"
+	nsqurl = "%s/mpub?topic=%s" % (nsq, topic)
+	try:
+		urllib.request.urlopen(nsqurl, data=payload)
+	except Exception as err:
+		logging.error('%s Error while sending data to %s: %s', prefix, nsqurl, err)
+	else:
+		logging.info('%s Sent %d new entries to %s', prefix, len(ids), topic)
 
 def main():
 	parser = argparse.ArgumentParser(description='Download feed and push new URLs into next queue')
