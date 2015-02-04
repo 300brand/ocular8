@@ -37,6 +37,14 @@ func main() {
 		glog.Fatalf("get last run: %s", err)
 	}
 
+	switch cnt, err := a.Count(); true {
+	case err != nil:
+		glog.Fatalf("Article count: %s", err)
+	case cnt == 0:
+		glog.Errorf("No articles to count")
+		return
+	}
+
 	if err := a.Find(nil).Sort("-_id").One(lastId); err != nil {
 		glog.Fatalf("get max id: %s", err)
 	}
