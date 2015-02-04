@@ -18,7 +18,7 @@ type ConfigType struct {
 var Config = &ConfigType{
 	Etcd:          "http://127.0.0.1:4001",
 	Mongo:         "mongodb://127.0.0.1:27017/ocular8",
-	NsqdHTTP:      "http://127.0.0.1:4161",
+	NsqdHTTP:      "http://127.0.0.1:4151",
 	NsqdTCP:       "127.0.0.1:4150",
 	NsqLookupdTCP: "127.0.0.1:4160",
 	Handlers:      ".",
