@@ -18,22 +18,32 @@ def process(db, pub, article, prefix):
 
 	if len(pub['xpathauthor']) > 0:
 		logging.debug('%s XPath Author: %d', prefix, len(pub['xpathauthor']))
-		extracted.append(('author', extract(article, pub['xpathauthor'])))
+		if not extracted.append(('author', extract(article, pub['xpathauthor']))):
+			logging.warning('%s Nothing found for Author', prefix)
 
 	if ('bodytext' not in article or article['bodytext'] is None or article['bodytext'] == '') and len(pub['xpathbody']) > 0:
 		logging.debug('%s XPath Body: %d', prefix, len(pub['xpathbody']))
-		extracted.append(('bodytext', extract(article, pub['xpathbody'])))
+		if not extracted.append(('bodytext', extract(article, pub['xpathbody']))):
+			logging.warning('%s Nothing found for Body', prefix)
 
 	if len(pub['xpathdate']) > 0:
 		logging.debug('%s XPath Published: %d', prefix, len(pub['xpathdate']))
 		v = extract(article, pub['xpathdate'])
 		if v is not None:
-			v = dateutil.parser.parse(v)
-		extracted.append(('published', v))
+			try:
+				v = dateutil.parser.parse(v)
+			except ValueError as err:
+				logging.warning('%s Could not dateutil.parser.parse "%s"', prefix, v)
+			except Exception as err:
+				logging.error('%s Unexpected Exception: %s', prefix, err)
+
+		if not extracted.append(('published', v)):
+			logging.warning('%s Nothing found for Published', prefix)
 
 	if len(pub['xpathtitle']) > 0:
 		logging.debug('%s XPath Title: %d', prefix, len(pub['xpathtitle']))
-		extracted.append(('title', extract(article, pub['xpathtitle'])))
+		if not extracted.append(('title', extract(article, pub['xpathtitle']))):
+			logging.warning('%s Nothing found for Title', prefix)
 
 	update = {
 		'$set': {
@@ -60,6 +70,7 @@ def extract(article, xpaths):
 			remove.append(xpath[1:])
 		else:
 			if '~~' in xpath:
+				# Trim off date format from legacy XPaths
 				xpath = xpath[:xpath.find('~~')]
 			search.append(xpath)
 
@@ -73,7 +84,6 @@ def extract(article, xpaths):
 
 		found = tree.xpath(s)
 		if len(found) == 0:
-			logging.error('%s Nothing found with %s', prefix, s)
 			continue
 
 		return found
