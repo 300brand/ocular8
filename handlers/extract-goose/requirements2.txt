@@ -1,0 +1,4 @@
+goose-extractor==1.0.25
+lxml==3.4.1
+pymongo==2.8
+python-dateutil==2.4.0
