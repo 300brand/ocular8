@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
+	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/bitly/go-nsq"
@@ -15,14 +18,76 @@ import (
 const TOPIC = "feed.id.download"
 
 var (
-	dsn     = flag.String("mongo", "mongodb://localhost:27017/ocular8", "Connection string to MongoDB")
-	nsqAddr = flag.String("nsqd", "localhost:4150", "NSQd address")
-	limit   = flag.Int("limit", 10, "Max number of feeds to enqueue per batch")
-	useHTTP = flag.String("usehttp", "", "Use this HTTP address instead of TCP")
+	dsn      = flag.String("mongo", "mongodb://localhost:27017/ocular8", "Connection string to MongoDB")
+	nsqdHTTP = flag.String("nsqdhttp", "http://localhost:4151", "NSQd HTTP address")
+	limit    = flag.Int("limit", 10, "Max number of feeds to enqueue per batch")
 )
+
+var (
+	nsqdURL *url.URL
+)
+
+func checkStats() (err error) {
+	statsURL := new(url.URL)
+	*statsURL = *nsqdURL
+	statsURL.RawQuery = (url.Values{"format": []string{"json"}}).Encode()
+	statsURL.Path = "/stats"
+	resp, err := http.Get(statsURL.String())
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	stats := &struct {
+		Data struct {
+			Topics []struct {
+				Name     string `json:"topic_name"`
+				Depth    int
+				Channels []struct {
+					Depth int
+				}
+			}
+		}
+	}{}
+	if err = json.NewDecoder(resp.Body).Decode(stats); err != nil {
+		return
+	}
+
+	glog.Infof("%+v", stats)
+
+	for _, topic := range stats.Data.Topics {
+		switch topic.Name {
+		case TOPIC, "entry.id.download":
+			// keep processing
+		default:
+			continue
+		}
+
+		if len(topic.Channels)
+
+		if topic.Depth > 0 {
+			return fmt.Errorf("%s Topic handlers not active, %d in topic queue", topic.Name, topic.Depth)
+		}
+	}
+
+	return
+}
 
 func main() {
 	flag.Parse()
+
+	var err error
+	nsqdURL, err = url.Parse(*nsqdHTTP)
+	if err != nil {
+		glog.Fatalf("Error parsing %s: %s", *nsqdHTTP, err)
+		return
+	}
+
+	if err := checkStats(); err != nil {
+		glog.Fatal(err, "Exiting")
+		return
+	}
+	return
 
 	s, err := mgo.Dial(*dsn)
 	if err != nil {
@@ -58,29 +123,21 @@ func main() {
 		glog.Fatalf("mgo.Find: %s", err)
 	}
 
-	payload := make([][]byte, len(ids))
+	pub := new(url.URL)
+	*pub = *nsqdURL
+	pub.Path = "/pub"
+	pub.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
 
-	for i, id := range ids {
+	payload := make([]byte, 0, len(ids)*25)
+	for _, id := range ids {
 		glog.Infof("ID: %s", id.Id.Hex())
-		payload[i] = []byte(id.Id.Hex())
+		payload = append(payload, []byte(id.Id.Hex())...)
+		payload = append(payload, '\n')
 	}
+	body := bytes.NewReader(payload)
+	bodyType := "multipart/form-data"
 
-	if *useHTTP != "" {
-		body := make([]byte, 0, *limit*25)
-		for _, p := range payload {
-			body = append(body, p...)
-			body = append(body, '\n')
-		}
-		http.Post(*useHTTP+"/mpub?topic="+TOPIC, "application/json;charset=UTF-8", bytes.NewReader(body))
-		return
-	}
-
-	producer, err := nsq.NewProducer(*nsqAddr, config)
-	if err != nil {
-		glog.Fatalf("nsq.NewProducer(%s, config): %s", *nsqAddr, err)
-	}
-	defer producer.Stop()
-	if err = producer.MultiPublish("feed.id.download", payload); err != nil {
-		glog.Fatalf("producer.MultiPublish: %s", err)
+	if _, err := http.Post(pub.String(), bodyType, body); err != nil {
+		glog.Fatalf("http.Post(%s): %s", pub.String(), err)
 	}
 }
