@@ -1,6 +1,11 @@
 #!/bin/bash
+IP=$(ip addr | awk '/inet 192/ { sub(/\/[0-9]+/, "", $2); print $2 }')
 # Docker Boots:
-docker run --detach --publish 4150:4150 --publish 4151:4151 --name nsqd     nsqio/nsqd
-docker run --detach --publish 4171:4171                     --name nsqadmin nsqio/nsqadmin -nsqd-http-address=192.168.1.4:4151
+docker run --detach --publish 4150:4150 --publish 4151:4151 --name nsqd     nsqio/nsqd -broadcast-address=${IP}
+docker run --detach --publish 4171:4171                     --name nsqadmin nsqio/nsqadmin -nsqd-http-address=${IP}:4151
 docker run --detach --publish 27017:27017                   --name o8-mongo mongo
 docker run --detach --publish 4001:4001 --publish 7001:7001 --name etcd     microbox/etcd:latest -name config -cors '*' -cluster-active-size 1
+
+#docker run --detach --name nsqd -p 4150:4150 -p 4151:4151 nsqio/nsqd --broadcast-address=192.168.20.15 --lookupd-tcp-address=172.17.42.1:4160
+#docker run --detach --name nsqlookupd -p 4160:4160 -p 4161:4161 nsqio/nsqlookupd
+# docker run --detach --publish 4171:4171 --name nsqadmin nsqio/nsqadmin -lookupd-http-address=172.17.42.1:4161
