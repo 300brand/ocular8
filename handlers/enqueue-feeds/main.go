@@ -21,6 +21,8 @@ var (
 	dsn      = flag.String("mongo", "mongodb://localhost:27017/ocular8", "Connection string to MongoDB")
 	nsqdHTTP = flag.String("nsqdhttp", "http://localhost:4151", "NSQd HTTP address")
 	limit    = flag.Int("limit", 10, "Max number of feeds to enqueue per batch")
+	force    = flag.Bool("force", false, "Do not check topic stats")
+	thresh   = flag.Int("thresh", 100, "Entry threshold to avoid pushing more feeds into download queue. Applies to both feed and entry downloads.")
 )
 
 var (
@@ -53,8 +55,6 @@ func checkStats() (err error) {
 		return
 	}
 
-	glog.Infof("%+v", stats)
-
 	for _, topic := range stats.Data.Topics {
 		switch topic.Name {
 		case TOPIC, "entry.id.download":
@@ -63,10 +63,22 @@ func checkStats() (err error) {
 			continue
 		}
 
-		if len(topic.Channels)
+		chanDepth := 0
+		for _, c := range topic.Channels {
+			chanDepth += c.Depth
+		}
 
-		if topic.Depth > 0 {
-			return fmt.Errorf("%s Topic handlers not active, %d in topic queue", topic.Name, topic.Depth)
+		switch {
+		case len(topic.Channels) == 0:
+			err = fmt.Errorf("%s No channels to handle topic", topic.Name)
+		case topic.Depth > 0:
+			err = fmt.Errorf("%s Topic handlers not active, %d in topic queue", topic.Name, topic.Depth)
+		case chanDepth > *thresh:
+			err = fmt.Errorf("%s Channel depth (%d) exceeds threshold (%d)", topic.Name, chanDepth, *thresh)
+		}
+
+		if err != nil {
+			return
 		}
 	}
 
@@ -83,9 +95,11 @@ func main() {
 		return
 	}
 
-	if err := checkStats(); err != nil {
-		glog.Fatal(err, "Exiting")
-		return
+	if !*force {
+		if err := checkStats(); err != nil {
+			glog.Warningf("%s. Exiting.", err)
+			return
+		}
 	}
 	return
 
