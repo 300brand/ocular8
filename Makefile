@@ -1,6 +1,6 @@
 GO=/usr/bin/go
 
-o8-server: handlers/enqueue-feeds/enqueue-feeds handlers/recount-articles/recount-articles
+o8-server: handlers/enqueue-feeds/enqueue-feeds handlers/recount-articles/recount-articles handlers/download-entry/download-entry
 	$(GO) build -o $@ ./server
 
 handlers/enqueue-feeds/enqueue-feeds:
@@ -8,6 +8,9 @@ handlers/enqueue-feeds/enqueue-feeds:
 
 handlers/recount-articles/recount-articles:
 	$(GO) build -o $@ ./handlers/recount-articles
+
+handlers/download-entry/download-entry:
+	$(GO) build -o $@ ./handlers/download-entry
 
 .PHONY: run
 run: clean o8-server
