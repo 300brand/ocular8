@@ -11,7 +11,7 @@
 		"Consume": {
 			"Topic":      "entry.id.download",
 			"Channel":    "download-entry",
-			"Concurrent": 4
+			"Concurrent": 20
 		},
 		"Produce": [
 			"article.id.extract.goose"
