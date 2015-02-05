@@ -1,5 +1,5 @@
 __pycache__
-handlers/download-feed/download-feed
+handlers/download-entry/download-entry
 handlers/enqueue-feeds/enqueue-feeds
 handlers/recount-articles/recount-articles
 o8-server
