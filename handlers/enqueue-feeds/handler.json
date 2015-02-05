@@ -3,10 +3,9 @@
 		"./enqueue-feeds",
 		"-mongo",
 		"{{ .Config.Mongo }}",
-		"-nsqd",
-		"{{ .Config.NsqdTCP }}",
-		"-usehttp",
-		"{{ .Config.NsqdHTTP }}"
+		"-nsqdhttp",
+		"{{ .Config.NsqdHTTP }}",
+		"-logtostderr"
 	],
 	"NSQ": {
 		"Produce": [

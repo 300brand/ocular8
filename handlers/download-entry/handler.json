@@ -5,13 +5,14 @@
 		"{{ .Config.Mongo }}",
 		"-nsqdhttp",
 		"{{ .Config.NsqdHTTP }}",
+		"-logtostderr",
 		"{{ .Data }}"
 	],
 	"NSQ": {
 		"Consume": {
 			"Topic":      "entry.id.download",
 			"Channel":    "download-entry",
-			"Concurrent": 20
+			"Concurrent": 10
 		},
 		"Produce": [
 			"article.id.extract.goose"

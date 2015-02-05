@@ -11,7 +11,7 @@
 		"Consume": {
 			"Topic":      "article.id.extract.xpath",
 			"Channel":    "extract-xpath",
-			"Concurrent": 20
+			"Concurrent": 10
 		},
 		"Produce": [
 			"article.id.elastic"
