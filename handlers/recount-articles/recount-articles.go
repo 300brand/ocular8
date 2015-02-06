@@ -29,6 +29,7 @@ func main() {
 		glog.Fatalf("mgo.Dial(%s): %s", *dsn, err)
 	}
 	defer s.Close()
+	s.SetSocketTimeout(5 * time.Minute)
 	db := s.DB("")
 	c := db.C("article_counts")
 	a := db.C("articles")
@@ -65,6 +66,7 @@ func main() {
 			"$lte": lastId.Id,
 		},
 	}
+	glog.Info("Starting...")
 	info, err := a.Find(query).MapReduce(job, nil)
 	if err != nil {
 		glog.Fatalf("MapReduce: %s", err)
