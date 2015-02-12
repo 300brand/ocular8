@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"time"
 
 	"github.com/300brand/ocular8/types"
@@ -26,6 +28,7 @@ type Entry struct {
 }
 
 const TOPIC = "article.id.extract.goose"
+const SIZELIMIT = 2 * 1024 * 1024
 
 var (
 	dsn      = flag.String("mongo", "mongodb://localhost:27017/ocular8", "Connection string to MongoDB")
@@ -47,6 +50,10 @@ func process(entry *Entry) (err error) {
 	}
 	defer resp.Body.Close()
 
+	if ct := resp.Header.Get("Content-Type"); invalidContentType(ct) {
+		return fmt.Errorf("Invalid Content-Type: %s", ct)
+	}
+
 	a := &types.Article{
 		Id:     entry.Id,
 		FeedId: entry.FeedId,
@@ -57,8 +64,13 @@ func process(entry *Entry) (err error) {
 	}
 	defer func(a *types.Article) { a.LoadTime = time.Since(start) }(a)
 
-	if a.HTML, err = ioutil.ReadAll(resp.Body); err != nil {
+	limitReader := io.LimitReader(resp.Body, SIZELIMIT)
+	if a.HTML, err = ioutil.ReadAll(limitReader); err != nil {
 		return
+	}
+
+	if len(a.HTML) == SIZELIMIT {
+		return fmt.Errorf("Received more than %d bytes", SIZELIMIT)
 	}
 
 	if a.Published, err = time.Parse(time.RFC1123, entry.Published); err != nil {
@@ -88,6 +100,16 @@ func process(entry *Entry) (err error) {
 	}
 	glog.Infof("%s Sent to %s", prefix, TOPIC)
 
+	return
+}
+
+func invalidContentType(ct string) (invalid bool) {
+	types := []string{
+		"audio/mpeg",
+	}
+	if i := sort.SearchStrings(types, ct); i < len(types) && types[i] == ct {
+		invalid = true
+	}
 	return
 }
 
@@ -122,7 +144,8 @@ func main() {
 		q := bson.M{"_id": bson.ObjectIdHex(id)}
 		entry := new(Entry)
 		if _, err := db.C("entries").Find(q).Apply(change, entry); err != nil {
-			glog.Fatalf("Find(%+v): %s", q, err)
+			glog.Errorf("Find(%+v): %s", q, err)
+			continue
 		}
 		if err := process(entry); err != nil {
 			glog.Errorf("process(%s): %s", entry.Id.Hex(), err)
