@@ -29,6 +29,8 @@ function pydeps {
 	for R in ${ROOT}/handlers/*/requirements3.txt; do
 		python3 -m pip install --user --requirement $R
 	done
+
+	(cd /tmp && git clone https://github.com/grangier/python-goose.git && cd python-goose && python2 setup.py install --user)
 }
 
 function start {
