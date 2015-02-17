@@ -101,7 +101,6 @@ func main() {
 			return
 		}
 	}
-	return
 
 	s, err := mgo.Dial(*dsn)
 	if err != nil {
@@ -139,7 +138,7 @@ func main() {
 
 	pub := new(url.URL)
 	*pub = *nsqdURL
-	pub.Path = "/pub"
+	pub.Path = "/mpub"
 	pub.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
 
 	payload := make([]byte, 0, len(ids)*25)
