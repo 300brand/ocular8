@@ -34,7 +34,8 @@ var (
 	db     *mgo.Database
 	nsqURL *url.URL
 
-	LINEPREFIX = []byte(`<?xml`)
+	XMLPREFIX  = []byte("<?xml ")
+	ITEMSUFFIX = []byte("</NEWSITEM>")
 )
 
 func process(filename string) (err error) {
@@ -44,30 +45,26 @@ func process(filename string) (err error) {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	scanner.Split(bufio.ScanLines)
+	r := bufio.NewReader(f)
 
-	var data []byte
-	var id bson.ObjectId
 	var ids = make([]bson.ObjectId, 0, 1024)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if !bytes.HasPrefix(line, LINEPREFIX) {
-			data = append(data, line...)
+	var buf bytes.Buffer
+	for line, readErr := r.ReadBytes('\n'); readErr == nil; line, readErr = r.ReadBytes('\n') {
+		buf.Write(bytes.TrimRight(line, "\r\n"))
+		if !bytes.HasPrefix(buf.Bytes(), XMLPREFIX) {
+			glog.Fatalf("Buffer does not have proper prefix (%s): %10.10q...", XMLPREFIX, buf.Bytes())
+		}
+		if !bytes.HasSuffix(buf.Bytes(), ITEMSUFFIX) {
 			continue
 		}
-		if len(data) > 0 {
-			if id, err = save(filename, data); err != nil {
-				return
-			}
-			ids = append(ids, id)
+
+		var id bson.ObjectId
+		if id, err = save(filename, buf.Bytes()); err != nil {
+			return
 		}
-		data = line
+		ids = append(ids, id)
+		buf.Reset()
 	}
-	if id, err = save(filename, data); err != nil {
-		return
-	}
-	ids = append(ids, id)
 
 	// Generate payload for NSQd
 	payload := make([]byte, 0, len(ids)*25)
