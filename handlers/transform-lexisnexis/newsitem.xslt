@@ -36,7 +36,7 @@
 	exclude-result-prefixes="co codir coprof fin indrep legidx lnci lncle lnclx lndel lndocmeta lngntxt lngt lnlit lnsys lnv lnvni lnvx lnvxe m-a m nitf pat peoref person research sa sec secfile stock"
 	>
 
-	<xsl:output method="xml" encoding="UTF-8" omit-xml-declaration="yes" indent="no" standalone="yes" />
+	<xsl:output method="xml" encoding="UTF-8" omit-xml-declaration="yes" indent="yes" standalone="yes" />
 
 	<xsl:template match="lnvxe:url">
 		<a>
@@ -47,6 +47,10 @@
 		</a>
 	</xsl:template>
 
+	<xsl:template match="nl">
+		<br />
+	</xsl:template>
+
 	<xsl:template match="node()">
 		<xsl:copy>
 			<xsl:copy-of select="@*" />
@@ -55,23 +59,41 @@
 	</xsl:template>
 
 	<xsl:template match="/NEWSITEM">
-		<newsitem>
-			<meta>
-				<id>
-					<lni>
+		<html prefix="og: http://ogp.me/ns#">
+			<head>
+				<meta property="og:title">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:HEADLINE/lnvxe:hl1" />
+					</xsl:attribute>
+				</meta>
+				<meta property="og:type" content="article" />
+				<meta property="og:url">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:URL-SEG/lnvxe:url/remotelink/@href" />
+					</xsl:attribute>
+				</meta>
+				<meta property="og:image" content="" />
+				<meta property="og:lni">
+					<xsl:attribute name="content">
 						<xsl:value-of select="lndocmeta:docinfo/lndocmeta:lnlni/@lnlni" />
-					</lni>
-					<smi>
+					</xsl:attribute>
+				</meta>
+				<meta property="og:smi">
+					<xsl:attribute name="content">
 						<xsl:value-of select="lndocmeta:docinfo/lndocmeta:smi/@lnsmi" />
-					</smi>
-					<dpsi>
+					</xsl:attribute>
+				</meta>
+				<meta property="og:dpsi">
+					<xsl:attribute name="content">
 						<xsl:value-of select="lndocmeta:docinfo/lndocmeta:dpsi/@lndpsi" />
-					</dpsi>
-					<section>
+					</xsl:attribute>
+				</meta>
+				<meta property="article:section">
+					<xsl:attribute name="content">
 						<xsl:value-of select="lnv:SECTION-INFO/lnvxe:position.section" />
-					</section>
-				</id>
-				<!--
+					</xsl:attribute>
+				</meta>
+			<!--
 				<lang>
 					<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english" />
 				</lang>
@@ -83,52 +105,47 @@
 						<xsl:value-of select="lnv:PUB" />
 					</name>
 				</pub>
-				-->
-				<!--
-				<published>
-					<year>
-						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@year" />
-					</year>
-					<month>
-						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@month" />
-					</month>
-					<day>
-						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@day" />
-					</day>
-					<human>
-						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date" />
-					</human>
-				</published>
-				-->
-				<url>
-					<xsl:value-of select="lnv:URL-SEG/lnvxe:url/remotelink/@href" />
-				</url>
-			</meta>
-			<!--
-			<headline>
-				<xsl:value-of select="lnv:HEADLINE/lnvxe:hl1" />
-			</headline>
-			<lead>
-				<xsl:apply-templates select="lnv:REAL-LEAD/*" />
-			</lead>
-			<body>
-				<xsl:apply-templates select="lnv:BODY-1/*" />
-				<xsl:apply-templates select="lnv:BODY-2/*" />
-				<xsl:apply-templates select="lnv:BODY-3/*" />
-				<xsl:apply-templates select="lnv:BODY-4/*" />
-				<xsl:apply-templates select="lnv:BODY-5/*" />
-				<xsl:apply-templates select="lnv:BODY-6/*" />
-				<xsl:apply-templates select="lnv:BODY-7/*" />
-				<xsl:apply-templates select="lnv:BODY-8/*" />
-				<xsl:apply-templates select="lnv:BODY-9/*" />
-				<xsl:apply-templates select="lnv:BODY-10/*" />
-				<xsl:apply-templates select="lnv:BODY-11/*" />
-				<xsl:apply-templates select="lnv:BODY-12/*" />
-				<xsl:apply-templates select="lnv:BODY-13/*" />
-				<xsl:apply-templates select="lnv:BODY-14/*" />
-			</body>
 			-->
-		</newsitem>
+				<meta property="article:published_time">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@year" />
+						<xsl:text>-</xsl:text>
+						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@month" />
+						<xsl:text>-</xsl:text>
+						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@day" />
+					</xsl:attribute>
+				</meta>
+				<link rel="canonical">
+					<xsl:attribute name="href">
+						<xsl:value-of select="lnv:URL-SEG/lnvxe:url/remotelink/@href" />
+					</xsl:attribute>
+				</link>
+				<meta name="headline">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:HEADLINE/lnvxe:hl1" />
+					</xsl:attribute>
+				</meta>
+			</head>
+			<body>
+				<article>
+					<xsl:apply-templates select="lnv:REAL-LEAD/*" />
+					<xsl:apply-templates select="lnv:BODY-1/*" />
+					<xsl:apply-templates select="lnv:BODY-2/*" />
+					<xsl:apply-templates select="lnv:BODY-3/*" />
+					<xsl:apply-templates select="lnv:BODY-4/*" />
+					<xsl:apply-templates select="lnv:BODY-5/*" />
+					<xsl:apply-templates select="lnv:BODY-6/*" />
+					<xsl:apply-templates select="lnv:BODY-7/*" />
+					<xsl:apply-templates select="lnv:BODY-8/*" />
+					<xsl:apply-templates select="lnv:BODY-9/*" />
+					<xsl:apply-templates select="lnv:BODY-10/*" />
+					<xsl:apply-templates select="lnv:BODY-11/*" />
+					<xsl:apply-templates select="lnv:BODY-12/*" />
+					<xsl:apply-templates select="lnv:BODY-13/*" />
+					<xsl:apply-templates select="lnv:BODY-14/*" />
+				</article>
+			</body>
+		</html>
 	</xsl:template>
 
 </xsl:stylesheet>
