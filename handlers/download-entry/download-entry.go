@@ -62,7 +62,6 @@ func process(entry *Entry) (err error) {
 		Author: entry.Author,
 		Title:  entry.Title,
 	}
-	defer func(a *types.Article) { a.LoadTime = time.Since(start) }(a)
 
 	limitReader := io.LimitReader(resp.Body, SIZELIMIT)
 	if a.HTML, err = ioutil.ReadAll(limitReader); err != nil {
@@ -85,6 +84,7 @@ func process(entry *Entry) (err error) {
 	a.Entry.Title = entry.Title
 	a.Entry.Author = entry.Author
 	a.Entry.Published = a.Published
+	a.LoadTime = time.Since(start)
 
 	glog.Infof("%s Moving to articles collection", prefix)
 	if err = db.C("articles").Insert(a); err != nil {
