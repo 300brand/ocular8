@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
@@ -84,7 +85,7 @@ func chunks(filename string) (ch chan []byte, err error) {
 		return
 	}
 
-	ch = make(chan []byte, 4)
+	ch = make(chan []byte)
 
 	go func() {
 		defer f.Close()
@@ -134,7 +135,7 @@ func feedName(attr *Attr) (name string) {
 		return "default"
 	}
 	if idx := strings.Index(name, ";"); idx > -1 {
-		name[:idx]
+		name = name[:idx]
 	}
 	name = strings.Replace(name, " ", "_", -1)
 	name = regexp.MustCompile(`\W`).ReplaceAllString(name, "")
@@ -142,18 +143,52 @@ func feedName(attr *Attr) (name string) {
 }
 
 func parentIds(attr *Attr) (pubid, feedid bson.ObjectId, err error) {
+	// Find or create pub
 	pub := new(types.Pub)
-	if err = db.C("pubs").Find(bson.M{"lexisnexis.dpsi": attr.Dpsi}).One(pub); err == mgo.ErrNotFound {
+	pQuery := bson.M{"lexisnexis.dpsi": attr.Dpsi}
+	if err = db.C("pubs").Find(pQuery).One(pub); err == mgo.ErrNotFound {
 		pub.Id = bson.NewObjectId()
+		pub.Homepage = fmt.Sprintf("http://www.lexis-nexis.com/%s", attr.Dpsi)
 		pub.IsLexisNexis = true
 		pub.Name = attr.Pub
 		pub.LexisNexis = &types.LexisNexisPub{
 			Name: attr.Pub,
-			DSPI: attr.Dpsi,
+			DPSI: attr.Dpsi,
 			// Track left undefined
 		}
+		if err = db.C("pubs").Insert(pub); err != nil {
+			return
+		}
+		err = nil
 	}
-	return bson.NewObjectId(), bson.NewObjectId(), nil
+	if err != nil {
+		return
+	}
+	// Feed time
+	feed := new(types.Feed)
+	section := feedName(attr)
+	fQuery := bson.M{
+		"pubid":              pub.Id,
+		"lexisnexis.section": section,
+	}
+	if err = db.C("feeds").Find(fQuery).One(feed); err == mgo.ErrNotFound {
+		feed.Id = bson.NewObjectId()
+		feed.PubId = pub.Id
+		feed.Url = fmt.Sprintf("http://www.lexis-nexis.com/%s/%s.xml", attr.Dpsi, section)
+		feed.IsLexisNexis = true
+		feed.LexisNexis = &types.LexisNexisFeed{
+			Section: section,
+			// Track left undefined
+		}
+		if err = db.C("feeds").Insert(feed); err != nil {
+			return
+		}
+		err = nil
+	}
+	if err != nil {
+		return
+	}
+	return pub.Id, feed.Id, nil
 }
 
 // Performs all LexisNexis processing items in order
@@ -163,50 +198,59 @@ func process(filename string) (err error) {
 		return
 	}
 
-	var attr *Attr
+	var wg sync.WaitGroup
 	for rawxml := range ch {
-		var html []byte
-		if html, err = transform(rawxml); err != nil {
+		wg.Add(1)
+		go func(rawxml []byte) {
+			defer wg.Done()
+			var html []byte
+			var attr *Attr
+			if html, err = transform(rawxml); err != nil {
+				return
+			}
+			if attr, err = extractAttr(html); err != nil {
+				return
+			}
+			if attr.Language != "en" {
+				glog.Warningf("Ignoring article: Language is '%s'", attr.Language)
+				return
+			}
+			glog.Infof("%s | %s", attr.Dpsi, feedName(attr))
 			return
-		}
-		if attr, err = extractAttr(html); err != nil {
-			return
-		}
-		glog.Infof("%s | %s", attr.Dpsi, attr.Section)
-		continue
-		if attr.Language != "en" {
-			glog.Warningf("Ignoring article: Language is '%s'", attr.Language)
-			continue
-		}
 
-		// If there's an existing article, update it's XML and HTML
-		var ln *types.LexisNexisArticle
-		article := articleExists(attr.Lni)
-		if article != nil {
-			article.LexisNexis.XML = rawxml
-			article.HTML = html
-			goto SaveArticle
-		}
-		// New article
-		ln = &types.LexisNexisArticle{
-			XML:      rawxml,
-			Filename: filename,
-			LNI:      attr.Lni,
-			DPSI:     attr.Dpsi,
-		}
-		article = &types.Article{
-			Id:           bson.NewObjectId(),
-			Url:          createURL(attr),
-			IsLexisNexis: true,
-			HTML:         html,
-			LexisNexis:   ln,
-		}
-		article.PubId, article.FeedId = parentIds(attr)
-	SaveArticle:
-		if err := save(article); err != nil {
-			glog.Errorf("process->save(%s): %s", article.Id.Hex(), err)
-		}
+			// If there's an existing article, update it's XML and HTML
+			var ln *types.LexisNexisArticle
+			article := articleExists(attr.Lni)
+			if article != nil {
+				article.LexisNexis.XML = rawxml
+				article.HTML = html
+				goto SaveArticle
+			}
+			// New article
+			ln = &types.LexisNexisArticle{
+				XML:      rawxml,
+				Filename: filename,
+				LNI:      attr.Lni,
+				DPSI:     attr.Dpsi,
+			}
+			article = &types.Article{
+				Id:           bson.NewObjectId(),
+				Url:          createURL(attr),
+				IsLexisNexis: true,
+				HTML:         html,
+				LexisNexis:   ln,
+			}
+			article.PubId, article.FeedId, err = parentIds(attr)
+			if err != nil {
+				return
+			}
+		SaveArticle:
+			if err := save(article); err != nil {
+				glog.Errorf("process->save(%s): %s", article.Id.Hex(), err)
+			}
+		}(rawxml)
 	}
+	wg.Wait()
 	return
 }
 
