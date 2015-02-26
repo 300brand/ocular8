@@ -59,62 +59,45 @@
 	</xsl:template>
 
 	<xsl:template match="/NEWSITEM">
-		<html prefix="og: http://ogp.me/ns#">
+		<html>
+			<xsl:attribute name="lang">
+				<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english/@iso639-1" />
+			</xsl:attribute>
+			<xsl:attribute name="itemtype">http://schema.org/NewsArticle</xsl:attribute>
 			<head>
-				<meta property="og:title">
-					<xsl:attribute name="content">
-						<xsl:value-of select="lnv:HEADLINE/lnvxe:hl1" />
-					</xsl:attribute>
-				</meta>
-				<meta property="og:type" content="article" />
-				<meta property="og:url">
-					<xsl:attribute name="content">
-						<xsl:value-of select="lnv:URL-SEG/lnvxe:url/remotelink/@href" />
-					</xsl:attribute>
-				</meta>
-				<meta property="og:image" content="" />
-				<meta property="og:lni">
-					<xsl:attribute name="content">
-						<xsl:value-of select="lndocmeta:docinfo/lndocmeta:lnlni/@lnlni" />
-					</xsl:attribute>
-				</meta>
-				<meta property="og:smi">
-					<xsl:attribute name="content">
-						<xsl:value-of select="lndocmeta:docinfo/lndocmeta:smi/@lnsmi" />
-					</xsl:attribute>
-				</meta>
-				<meta property="og:dpsi">
-					<xsl:attribute name="content">
-						<xsl:value-of select="lndocmeta:docinfo/lndocmeta:dpsi/@lndpsi" />
-					</xsl:attribute>
-				</meta>
-				<meta property="article:section">
-					<xsl:attribute name="content">
-						<xsl:value-of select="lnv:SECTION-INFO/lnvxe:position.section" />
-					</xsl:attribute>
-				</meta>
-			<!--
-				<lang>
-					<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english" />
-				</lang>
-				<pub>
-					<type>
-						<xsl:value-of select="lnv:PUBLICATION-TYPE/lnvxe:desc" />
-					</type>
-					<name>
-						<xsl:value-of select="lnv:PUB" />
-					</name>
-				</pub>
-			-->
-				<meta property="article:published_time">
-					<xsl:attribute name="content">
-						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@year" />
-						<xsl:text>-</xsl:text>
-						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@month" />
-						<xsl:text>-</xsl:text>
-						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@day" />
-					</xsl:attribute>
-				</meta>
+				<meta charset="UTF-8" />
+				<script type="application/xml">
+					<!--
+						Wish this could be applicaton/json, but writing JSON
+						with XML is probably not going to end well for anyone
+					-->
+					<lexisnexis>
+						<lni>
+							<xsl:value-of select="lndocmeta:docinfo/lndocmeta:lnlni/@lnlni" />
+						</lni>
+						<dpsi>
+							<xsl:value-of select="lndocmeta:docinfo/lndocmeta:dpsi/@lndpsi" />
+						</dpsi>
+						<pub>
+							<xsl:value-of select="lnv:PUB" />
+						</pub>
+						<pubtype>
+							<xsl:value-of select="lnv:PUBLICATION-TYPE/lnvxe:desc" />
+						</pubtype>
+						<url>
+							<xsl:value-of select="lnv:URL-SEG/lnvxe:url/remotelink/@href" />
+						</url>
+						<language>
+							<xsl:attribute name="name">
+								<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english" />
+							</xsl:attribute>
+							<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english/@iso639-1" />
+						</language>
+						<section>
+							<xsl:value-of select="lnv:SECTION-INFO/lnvxe:position.section" />
+						</section>
+					</lexisnexis>
+				</script>
 				<link rel="canonical">
 					<xsl:attribute name="href">
 						<xsl:value-of select="lnv:URL-SEG/lnvxe:url/remotelink/@href" />
@@ -125,9 +108,59 @@
 						<xsl:value-of select="lnv:HEADLINE/lnvxe:hl1" />
 					</xsl:attribute>
 				</meta>
+				<!-- Schema.org below -->
+				<meta itemprop="printColumn">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:COLUMN" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="printEdition">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:EDITION/lnvxe:desc[0]" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="printPage">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:SECTION-INFO/lnvxe:position.sequence" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="printSection">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:SECTION-INFO/lnvxe:position.section" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="datePublished">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@year" />
+						<xsl:text>-</xsl:text>
+						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@month" />
+						<xsl:text>-</xsl:text>
+						<xsl:value-of select="lnv:PUB-DATE/lnvxe:date/@day" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="copyrightHolder">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:COPYRIGHT/lnv:PUB-COPYRIGHT/lnvxe:copyright.holder" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="copyrightYear">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:COPYRIGHT/lnv:PUB-COPYRIGHT/lnvxe:copyright.year/@year" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="wordCount">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:LENGTH" />
+					</xsl:attribute>
+				</meta>
+				<meta itemprop="url">
+					<xsl:attribute name="content">
+						<xsl:value-of select="lnv:URL-SEG/lnvxe:url/remotelink/@href" />
+					</xsl:attribute>
+				</meta>
 			</head>
 			<body>
-				<article>
+				<div itemprop="articleBody">
 					<xsl:apply-templates select="lnv:REAL-LEAD/*" />
 					<xsl:apply-templates select="lnv:BODY-1/*" />
 					<xsl:apply-templates select="lnv:BODY-2/*" />
@@ -143,7 +176,7 @@
 					<xsl:apply-templates select="lnv:BODY-12/*" />
 					<xsl:apply-templates select="lnv:BODY-13/*" />
 					<xsl:apply-templates select="lnv:BODY-14/*" />
-				</article>
+				</div>
 			</body>
 		</html>
 	</xsl:template>
