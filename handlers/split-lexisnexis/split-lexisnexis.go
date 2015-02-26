@@ -33,10 +33,7 @@ type Attr struct {
 	Section  string `xml:"head>script>lexisnexis>section"`
 }
 
-const (
-	COLLECTION = "articles"
-	TOPIC      = "article.id.extract.goose"
-)
+const TOPIC = "article.id.extract.goose"
 
 var (
 	XMLPREFIX    = []byte("<?xml ")
@@ -51,6 +48,8 @@ var (
 
 	parents = make(map[string]map[string][2]bson.ObjectId)
 	pMutex  = new(sync.Mutex)
+
+	articleIds = make([]bson.ObjectId, 0, 1000)
 )
 
 var (
@@ -274,6 +273,7 @@ func save(a *types.Article) (err error) {
 	if _, err = db.C("articles").UpsertId(a.Id, a); err != nil {
 		return
 	}
+	articleIds = append(articleIds, a.Id)
 	if dir := *toFile; dir != "" {
 		var f *os.File
 		if f, err = os.Create(filepath.Join(dir, a.Id.Hex()+".json")); err != nil {
@@ -337,6 +337,7 @@ func transform(rawxml []byte) (html []byte, err error) {
 
 func main() {
 	var err error
+	var start = time.Now()
 	flag.Parse()
 
 	if flag.NArg() == 0 {
@@ -363,4 +364,10 @@ func main() {
 			glog.Errorf("process(%s): %s", filename, err)
 		}
 	}
+
+	if err := sendIds(articleIds); err != nil {
+		glog.Errorf("sendIds(len(articleIds)=%d) failed: %s", len(articleIds), err)
+		os.Exit(1)
+	}
+	glog.Infof("Processed %d articles in %s. Sent ids to %s", len(articleIds), time.Since(start), TOPIC)
 }
