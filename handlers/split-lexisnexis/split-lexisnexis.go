@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
@@ -46,6 +48,9 @@ var (
 		[]byte(`<!DOCTYPE NEWSITEM PUBLIC "//LN//NEWSITEMv01-000//EN" "http://lnxhome/les/dsa/dtd/NEWSITEMv01-000.dtd">`),
 		[]byte(`<!DOCTYPE NEWSITEM PUBLIC "//LN//NEWSITEMv01-000//EN" "http://lnxhome/lex/dsa/dtd/NEWSITEMv01-000.dtd">`),
 	}
+
+	parents = make(map[string]map[string][2]bson.ObjectId)
+	pMutex  = new(sync.Mutex)
 )
 
 var (
@@ -143,6 +148,15 @@ func feedName(attr *Attr) (name string) {
 }
 
 func parentIds(attr *Attr) (pubid, feedid bson.ObjectId, err error) {
+	pMutex.Lock()
+	defer pMutex.Unlock()
+	section := feedName(attr)
+	if parents[attr.Dpsi] != nil {
+		if ids, ok := parents[attr.Dpsi][section]; ok {
+			return ids[0], ids[1], nil
+		}
+	}
+
 	// Find or create pub
 	pub := new(types.Pub)
 	pQuery := bson.M{"lexisnexis.dpsi": attr.Dpsi}
@@ -164,9 +178,11 @@ func parentIds(attr *Attr) (pubid, feedid bson.ObjectId, err error) {
 	if err != nil {
 		return
 	}
+	if parents[attr.Dpsi] == nil {
+		parents[attr.Dpsi] = make(map[string][2]bson.ObjectId)
+	}
 	// Feed time
 	feed := new(types.Feed)
-	section := feedName(attr)
 	fQuery := bson.M{
 		"pubid":              pub.Id,
 		"lexisnexis.section": section,
@@ -188,6 +204,7 @@ func parentIds(attr *Attr) (pubid, feedid bson.ObjectId, err error) {
 	if err != nil {
 		return
 	}
+	parents[attr.Dpsi][section] = [2]bson.ObjectId{pub.Id, feed.Id}
 	return pub.Id, feed.Id, nil
 }
 
@@ -203,6 +220,7 @@ func process(filename string) (err error) {
 		wg.Add(1)
 		go func(rawxml []byte) {
 			defer wg.Done()
+			var start = time.Now()
 			var html []byte
 			var attr *Attr
 			if html, err = transform(rawxml); err != nil {
@@ -215,9 +233,6 @@ func process(filename string) (err error) {
 				glog.Warningf("Ignoring article: Language is '%s'", attr.Language)
 				return
 			}
-			glog.Infof("%s | %s", attr.Dpsi, feedName(attr))
-			return
-
 			// If there's an existing article, update it's XML and HTML
 			var ln *types.LexisNexisArticle
 			article := articleExists(attr.Lni)
@@ -229,7 +244,7 @@ func process(filename string) (err error) {
 			// New article
 			ln = &types.LexisNexisArticle{
 				XML:      rawxml,
-				Filename: filename,
+				Filename: filepath.Base(filename),
 				LNI:      attr.Lni,
 				DPSI:     attr.Dpsi,
 			}
@@ -245,6 +260,7 @@ func process(filename string) (err error) {
 				return
 			}
 		SaveArticle:
+			article.LoadTime = time.Since(start)
 			if err := save(article); err != nil {
 				glog.Errorf("process->save(%s): %s", article.Id.Hex(), err)
 			}
@@ -255,28 +271,18 @@ func process(filename string) (err error) {
 }
 
 func save(a *types.Article) (err error) {
+	if _, err = db.C("articles").UpsertId(a.Id, a); err != nil {
+		return
+	}
+	if dir := *toFile; dir != "" {
+		var f *os.File
+		if f, err = os.Create(filepath.Join(dir, a.Id.Hex()+".json")); err != nil {
+			return
+		}
+		defer f.Close()
+		err = json.NewEncoder(f).Encode(a)
+	}
 	return
-
-	// doc := &Doc{
-	// 	Id:       bson.NewObjectId(),
-	// 	Filename: filepath.Base(filename),
-	// 	XML:      data,
-	// }
-	// if err = db.C(COLLECTION).Insert(doc); err != nil {
-	// 	glog.Errorf("db.C(%s).Insert({Id:%s, Filename:%s, XML:%d})", COLLECTION, doc.Id, doc.Filename, len(data))
-	// 	return
-	// }
-	// if dir := *toFile; dir != "" {
-	// 	var f *os.File
-	// 	if f, err = os.Create(filepath.Join(dir, doc.Id.Hex()+".xml")); err != nil {
-	// 		return
-	// 	}
-	// 	defer f.Close()
-	// 	if _, err = f.Write(data); err != nil {
-	// 		return
-	// 	}
-	// }
-	// return doc.Id, nil
 }
 
 // Compiles ObjectIds into a single payload for NSQ mpub and sends to TOPIC
@@ -321,7 +327,7 @@ func transform(rawxml []byte) (html []byte, err error) {
 
 	if stderr.Len() > 0 {
 		err = fmt.Errorf("There was an error while transforming. See logs")
-		// glog.Error(stderr.String())
+		glog.Error(stderr.String())
 		return
 	}
 
