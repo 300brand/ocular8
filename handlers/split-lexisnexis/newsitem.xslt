@@ -36,6 +36,8 @@
 	exclude-result-prefixes="co codir coprof fin indrep legidx lnci lncle lnclx lndel lndocmeta lngntxt lngt lnlit lnsys lnv lnvni lnvx lnvxe m-a m nitf pat peoref person research sa sec secfile stock"
 	>
 
+	<xsl:variable name="lc" select="'abcdefghijklmnopqrstuvwxyz'" />
+	<xsl:variable name="uc" select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'" />
 	<xsl:output method="xml" encoding="UTF-8" omit-xml-declaration="yes" indent="yes" standalone="yes" />
 
 	<xsl:template match="lnvxe:url">
@@ -61,7 +63,7 @@
 	<xsl:template match="/NEWSITEM">
 		<html>
 			<xsl:attribute name="lang">
-				<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english/@iso639-1" />
+				<xsl:value-of select="translate(lnv:LANGUAGE/lnvxe:lang.english/@iso639-1, $uc, $lc)" />
 			</xsl:attribute>
 			<xsl:attribute name="itemtype">http://schema.org/NewsArticle</xsl:attribute>
 			<head>
@@ -91,7 +93,7 @@
 							<xsl:attribute name="name">
 								<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english" />
 							</xsl:attribute>
-							<xsl:value-of select="lnv:LANGUAGE/lnvxe:lang.english/@iso639-1" />
+							<xsl:value-of select="translate(lnv:LANGUAGE/lnvxe:lang.english/@iso639-1, $uc, $lc)" />
 						</language>
 						<section>
 							<xsl:value-of select="lnv:SECTION-INFO/lnvxe:position.section" />
