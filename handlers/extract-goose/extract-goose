@@ -82,10 +82,10 @@ def main():
 		q = {
 			'_id': article['pubid'],
 			'$or': [
-				{ 'xpathauthor': { '$not': { '$size': 0 } } },
-				{ 'xpathbody':   { '$not': { '$size': 0 } } },
-				{ 'xpathdate':   { '$not': { '$size': 0 } } },
-				{ 'xpathtitle':  { '$not': { '$size': 0 } } }
+				{ 'xpathauthor': { '$exists': True, '$not': { '$size': 0 } } },
+				{ 'xpathbody':   { '$exists': True, '$not': { '$size': 0 } } },
+				{ 'xpathdate':   { '$exists': True, '$not': { '$size': 0 } } },
+				{ 'xpathtitle':  { '$exists': True, '$not': { '$size': 0 } } }
 			]
 		}
 		pub = db.pubs.find_one(q)
