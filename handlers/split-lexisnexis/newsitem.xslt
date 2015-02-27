@@ -98,6 +98,12 @@
 						<section>
 							<xsl:value-of select="lnv:SECTION-INFO/lnvxe:position.section" />
 						</section>
+						<reportno>
+							<xsl:value-of select="lnv:REPORT-NO" />
+						</reportno>
+						<journalcode>
+							<xsl:value-of select="lnv:JOURNAL-CODE" />
+						</journalcode>
 					</lexisnexis>
 				</script>
 				<link rel="canonical">

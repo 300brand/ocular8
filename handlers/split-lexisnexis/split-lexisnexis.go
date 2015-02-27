@@ -24,13 +24,15 @@ import (
 )
 
 type Attr struct {
-	Lni      string `xml:"head>script>lexisnexis>lni"`
-	Dpsi     string `xml:"head>script>lexisnexis>dpsi"`
-	Pub      string `xml:"head>script>lexisnexis>pub"`
-	Pubtype  string `xml:"head>script>lexisnexis>pubtype"`
-	Url      string `xml:"head>script>lexisnexis>url"`
-	Language string `xml:"head>script>lexisnexis>language"`
-	Section  string `xml:"head>script>lexisnexis>section"`
+	Lni         string `xml:"head>script>lexisnexis>lni"`
+	Dpsi        string `xml:"head>script>lexisnexis>dpsi"`
+	ReportNo    string `xml:"head>script>lexisnexis>reportno"`
+	JournalCode string `xml:"head>script>lexisnexis>journalcode"`
+	Pub         string `xml:"head>script>lexisnexis>pub"`
+	Pubtype     string `xml:"head>script>lexisnexis>pubtype"`
+	Url         string `xml:"head>script>lexisnexis>url"`
+	Language    string `xml:"head>script>lexisnexis>language"`
+	Section     string `xml:"head>script>lexisnexis>section"`
 }
 
 const TOPIC = "article.id.extract.goose"
@@ -158,7 +160,13 @@ func parentIds(attr *Attr) (pubid, feedid bson.ObjectId, err error) {
 
 	// Find or create pub
 	pub := new(types.Pub)
-	pQuery := bson.M{"lexisnexis.dpsi": attr.Dpsi}
+	var id string
+	if id = attr.ReportNo; id != "" {
+	} else if id = attr.JournalCode; id != "" {
+	} else if id = attr.Dpsi; id != "" {
+	}
+
+	pQuery := bson.M{"lexisnexis.id": id}
 	if err = db.C("pubs").Find(pQuery).One(pub); err == mgo.ErrNotFound {
 		pub.Id = bson.NewObjectId()
 		pub.Homepage = fmt.Sprintf("http://www.lexis-nexis.com/%s", attr.Dpsi)
@@ -166,7 +174,7 @@ func parentIds(attr *Attr) (pubid, feedid bson.ObjectId, err error) {
 		pub.Name = attr.Pub
 		pub.LexisNexis = &types.LexisNexisPub{
 			Name: attr.Pub,
-			DPSI: attr.Dpsi,
+			Id:   id,
 			// Track left undefined
 		}
 		if err = db.C("pubs").Insert(pub); err != nil {
