@@ -4,13 +4,16 @@ import (
 	"encoding/xml"
 )
 
+// Structure taken from XSD found at:
+// http://metabase.moreover.com/schema/articles10.xsd
+
 type Response struct {
 	XMLName          xml.Name  `xml:"response"`
 	Status           string    `xml:"status,omitempty"`
 	MessageCode      string    `xml:"messageCode,omitempty"`
 	UserMessage      string    `xml:"userMessage,omitempty"`
 	DeveloperMessage string    `xml:"developerMessage,omitempty"`
-	Articles         []Article `xml:"articles,omitempty"`
+	Articles         []Article `xml:"articles>article,omitempty"`
 }
 
 type Article struct {
@@ -21,7 +24,7 @@ type Article struct {
 	SubTitle                    string                      `xml:"subTitle,omitempty"`
 	Content                     string                      `xml:"content,omitempty"`
 	ContentWithMarkup           string                      `xml:"contentWithMarkup,omitempty"`
-	Tags                        []Tag                       `xml:"tags,omitempty"`
+	Tags                        []Tag                       `xml:"tags>tag,omitempty"`
 	PublishedDate               string                      `xml:"publishedDate"`
 	HarvestDate                 string                      `xml:"harvestDate"`
 	EmbargoDate                 string                      `xml:"embargoDate,omitempty"`
@@ -30,7 +33,7 @@ type Article struct {
 	Url                         string                      `xml:"url"`
 	OriginalUrl                 string                      `xml:"originalUrl,omitempty"`
 	CommentsUrl                 string                      `xml:"commentsUrl"`
-	OutboundUrls                []OutboundUrl               `xml:"outboundUrls,omitempty"`
+	OutboundUrls                []OutboundUrl               `xml:"outboundUrls>outboundUrl,omitempty"`
 	WordCount                   string                      `xml:"wordCount,omitempty"`
 	DataFormat                  string                      `xml:"dataFormat"`
 	Copyright                   string                      `xml:"copyright"`
@@ -41,16 +44,16 @@ type Article struct {
 	Media                       Media                       `xml:"media"`
 	PublishingPlatform          ArticlePublishingPlatform   `xml:"publishingPlatform"`
 	AdultLanguage               string                      `xml:"adultLanguage"`
-	Topics                      []Topic                     `xml:"topics,omitempty"`
-	Companies                   []Company                   `xml:"companies,omitempty"`
-	Locations                   []ArticleLocation           `xml:"locations,omitempty"`
+	Topics                      []Topic                     `xml:"topics>topic,omitempty"`
+	Companies                   []Company                   `xml:"companies>company,omitempty"`
+	Locations                   []ArticleLocation           `xml:"locations>location,omitempty"`
 	Semantics                   Semantics                   `xml:"semantics,omitempty"`
 	Sentiment                   Sentiment                   `xml:"sentiment,omitempty"`
 	Print                       Print                       `xml:"print,omitempty"`
 	Broadcast                   Broadcast                   `xml:"broadcast,omitempty"`
 	Author                      Author                      `xml:"author"`
-	Licenses                    []License                   `xml:"licenses,omitempty"`
-	LinkedArticles              []LinkedArticle             `xml:"linkedArticles,omitempty"`
+	Licenses                    []License                   `xml:"licenses>license,omitempty"`
+	LinkedArticles              []LinkedArticle             `xml:"linkedArticles>linkedArticle,omitempty"`
 	AdvertisingValueEquivalency AdvertisingValueEquivalency `xml:"advertisingValueEquivalency,omitempty"`
 	Source                      Source                      `xml:"source"`
 }
@@ -69,7 +72,7 @@ type Harvest struct {
 	StreamReaderStartTime      string        `xml:"streamReaderStartTime,omitempty"`
 	StreamReaderFileName       string        `xml:"streamReaderFileName,omitempty"`
 	StreamReaderSearchTermName string        `xml:"streamReaderSearchTermName,omitempty"`
-	CustomerTags               []CustomerTag `xml:"customerTags,omitempty"`
+	CustomerTags               []CustomerTag `xml:"customerTags>customerTag,omitempty"`
 }
 
 type CustomerTag string
@@ -150,12 +153,12 @@ type State struct {
 }
 
 type Semantics struct {
-	Events   []SemanticsItem `xml:"events,omitempty"`
-	Entities []SemanticsItem `xml:"entities,omitempty"`
+	Events   []SemanticsItem `xml:"events>event,omitempty"`
+	Entities []SemanticsItem `xml:"entities>entity,omitempty"`
 }
 
 type SemanticsItem struct {
-	Properties []Property `xml:"properties,omitempty"`
+	Properties []Property `xml:"properties>property,omitempty"`
 }
 
 type Property struct {
@@ -165,7 +168,7 @@ type Property struct {
 
 type Sentiment struct {
 	Score    string            `xml:"score,omitempty"`
-	Entities []SentimentEntity `xml:"entities,omitempty"`
+	Entities []SentimentEntity `xml:"entities>entity,omitempty"`
 }
 
 type SentimentEntity struct {
@@ -200,7 +203,7 @@ type Broadcast struct {
 	Title           string `xml:"title"`
 	ProgramOrigin   string `xml:"programOrigin"`
 	ProgramCategory string `xml:"programCategory"`
-	Lines           []Line `xml:"lines,omitempty"`
+	Lines           []Line `xml:"lines>line,omitempty"`
 }
 
 type Line struct {
@@ -303,15 +306,15 @@ type Feed struct {
 	IdFromPublisher    string   `xml:"idFromPublisher"`
 	Generator          string   `xml:"generator"`
 	Description        string   `xml:"description"`
-	Tags               []Tag    `xml:"tags,omitempty"`
+	Tags               []Tag    `xml:"tags>tag,omitempty"`
 	ImageUrl           string   `xml:"imageUrl"`
 	Copyright          string   `xml:"copyright"`
 	Language           string   `xml:"language"`
 	DataFormat         string   `xml:"dataFormat"`
 	Rank               Rank     `xml:"rank"`
 	InWhiteList        string   `xml:"inWhiteList"`
-	AutoTopics         []string `xml:"autoTopics,omitempty"`
-	EditorialTopics    []string `xml:"editorialTopics,omitempty"`
+	AutoTopics         []string `xml:"autoTopics>autoTopic,omitempty"`
+	EditorialTopics    []string `xml:"editorialTopics>editorialTopic,omitempty"`
 	Genre              string   `xml:"genre"`
 }
 
