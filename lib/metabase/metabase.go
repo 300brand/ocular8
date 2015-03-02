@@ -16,14 +16,15 @@ func init() {
 
 // Fetches next set of articles from Metabase. If sequenceId is 0, performs
 // initial request which returns the latest articles in Metabase
-func Fetch(apikey string, sequenceId int) (r *Response, err error) {
+func Fetch(apikey, sequenceId string) (r *Response, err error) {
 	query := make(url.Values)
 	query.Set("key", apikey)
 	query.Set("limit", "500")
-	if sequenceId > 0 {
-		query.Set("sequence_id", fmt.Sprint(sequenceId))
+	if sequenceId != "" {
+		query.Set("sequence_id", sequenceId)
 	}
 	apiUrl.RawQuery = query.Encode()
+	glog.Infof("Requesting %s", apiUrl)
 
 	req, err := http.NewRequest("GET", apiUrl.String(), nil)
 	if err != nil {
@@ -37,7 +38,14 @@ func Fetch(apikey string, sequenceId int) (r *Response, err error) {
 		return
 	}
 	defer resp.Body.Close()
+
 	r = new(Response)
-	err = xml.NewDecoder(resp.Body).Decode(r)
+	if err = xml.NewDecoder(resp.Body).Decode(r); err != nil {
+		return
+	}
+
+	if r.Status == "FAILURE" {
+		err = fmt.Errorf("[%d] %s", r.MessageCode, r.DeveloperMessage)
+	}
 	return
 }
