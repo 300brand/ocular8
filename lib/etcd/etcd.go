@@ -2,6 +2,7 @@ package etcd
 
 import (
 	"github.com/coreos/go-etcd/etcd"
+	"path/filepath"
 )
 
 type Client struct {
@@ -15,12 +16,23 @@ func New(machines []string) (c *Client) {
 
 // Get value at key.
 // If it does not exist, set with default value and return default value.
-func (c *Client) GetDefault(key, defaultValue string) (value string, err error) {
+func (c *Client) GetDefault(key, defaultValue, description string) (value string, err error) {
 	resp, err := c.Client.Get(key, false, false)
 	if e, ok := err.(*etcd.EtcdError); ok {
 		switch e.ErrorCode {
 		case 100:
-			resp, err = c.Client.Set(key, defaultValue, 0)
+			if resp, err = c.Client.Set(key, defaultValue, 0); err != nil {
+				return
+			}
+			dir, base := filepath.Split(key)
+			defaultKey := filepath.Join(dir, "_"+base+".default")
+			descKey := filepath.Join(dir, "_"+base+".desc")
+			if _, err = c.Client.Set(defaultKey, defaultValue, 0); err != nil {
+				return
+			}
+			if _, err = c.Client.Set(descKey, description, 0); err != nil {
+				return
+			}
 		}
 	}
 	if err != nil {

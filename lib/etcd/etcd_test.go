@@ -9,10 +9,10 @@ func TestGetDefault(t *testing.T) {
 
 	// Ensure clean before and after testing
 	c.Delete("/test", true)
-	defer c.Delete("/test", true)
+	// defer c.Delete("/test", true)
 
 	exp := "value"
-	value, err := c.GetDefault("/test/get", exp)
+	value, err := c.GetDefault("/test/get", exp, "Test item")
 	if err != nil {
 		t.Fatalf("Get: %s", err)
 	}
@@ -20,7 +20,7 @@ func TestGetDefault(t *testing.T) {
 		t.Errorf("Did not get expected (%s) value: %s", exp, value)
 	}
 
-	value, err = c.GetDefault("/test/get", exp+"2")
+	value, err = c.GetDefault("/test/get", exp+"2", "")
 	if err != nil {
 		t.Fatalf("Get 2: %s", err)
 	}
