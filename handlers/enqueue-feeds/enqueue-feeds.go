@@ -19,7 +19,7 @@ import (
 var (
 	etcdUrl     = flag.String("etcd", "http://localhost:4001", "Etcd URL")
 	dsn         string
-	nsqd        *url.URL
+	nsqURL      *url.URL
 	limit       int
 	threshold   int
 	TOPIC       string
@@ -27,13 +27,13 @@ var (
 )
 
 var (
-	nsqdURL *url.URL
+	nsqURLURL *url.URL
 )
 
 func checkStats() (err error) {
-	nsqd.RawQuery = (url.Values{"format": []string{"json"}}).Encode()
-	nsqd.Path = "/stats"
-	resp, err := http.Get(nsqd.String())
+	nsqURL.RawQuery = (url.Values{"format": []string{"json"}}).Encode()
+	nsqURL.Path = "/stats"
+	resp, err := http.Get(nsqURL.String())
 	if err != nil {
 		return
 	}
@@ -122,7 +122,7 @@ func setConfigs() (err error) {
 		return
 	}
 	dsn = configs[0].Value
-	if nsqd, err = url.Parse(configs[1].Value); err != nil {
+	if nsqURL, err = url.Parse(configs[1].Value); err != nil {
 		return
 	}
 	if limit, err = strconv.Atoi(configs[2].Value); err != nil {
@@ -189,10 +189,10 @@ func main() {
 	body := bytes.NewReader(payload)
 	bodyType := "multipart/form-data"
 
-	nsqd.Path = "/mpub"
-	nsqd.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
-	if _, err := http.Post(nsqd.String(), bodyType, body); err != nil {
-		glog.Fatalf("http.Post(%s): %s", nsqd.String(), err)
+	nsqURL.Path = "/mpub"
+	nsqURL.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
+	if _, err := http.Post(nsqURL.String(), bodyType, body); err != nil {
+		glog.Fatalf("http.Post(%s): %s", nsqURL.String(), err)
 	}
-	glog.Infof("Sent %d Feed IDs to %s", len(ids), nsqd)
+	glog.Infof("Sent %d Feed IDs to %s", len(ids), nsqURL)
 }
