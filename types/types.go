@@ -28,6 +28,7 @@ type Feed struct {
 	NumArticles  int
 	LastDownload time.Time
 	NextDownload time.Time
+	Ignore       bool
 }
 
 type Article struct {
@@ -42,20 +43,30 @@ type Article struct {
 	BodyHTML  string
 	HTML      []byte
 	LoadTime  time.Duration
-	Entry     *EntryInfo
-	Goose     *GooseInfo
+	Entry     *Entry
+	Goose     *Goose
+	Metabase  *Metabase
 }
 
-type EntryInfo struct {
+type Entry struct {
 	Url       string
 	Title     string
 	Author    string
 	Published time.Time
 }
 
-type GooseInfo struct {
+type Goose struct {
 	BodyXPath string
 	Title     string
 	Published time.Time
 	Authors   []string
+}
+
+type Metabase struct {
+	Author        string
+	AuthorHomeUrl string
+	AuthorEmail   string
+	Companies     []string
+	SequenceId    string
+	Id            string
 }
