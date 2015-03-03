@@ -5,12 +5,19 @@ import (
 	"path/filepath"
 )
 
+type Item struct {
+	Key     string
+	Default string
+	Desc    string
+	Value   string
+}
+
 type Client struct {
 	*etcd.Client
 }
 
-func New(machines []string) (c *Client) {
-	c = &Client{etcd.NewClient(machines)}
+func New(machine string) (c *Client) {
+	c = &Client{etcd.NewClient([]string{machine})}
 	return
 }
 
@@ -39,5 +46,14 @@ func (c *Client) GetDefault(key, defaultValue, description string) (value string
 		return
 	}
 	value = resp.Node.Value
+	return
+}
+
+func (c *Client) GetAll(items []*Item) (err error) {
+	for _, item := range items {
+		if item.Value, err = c.GetDefault(item.Key, item.Default, item.Desc); err != nil {
+			return
+		}
+	}
 	return
 }
