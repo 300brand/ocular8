@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"github.com/300brand/ocular8/lib/etcd"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/300brand/ocular8/types"
@@ -27,12 +29,11 @@ type Entry struct {
 	Published string
 }
 
-const TOPIC = "article.id.extract.goose"
-const SIZELIMIT = 2 * 1024 * 1024
-
 var (
-	dsn      = flag.String("mongo", "mongodb://localhost:27017/ocular8", "Connection string to MongoDB")
-	nsqdhttp = flag.String("nsqdhttp", "http://localhost:4151", "NSQd HTTP address")
+	etcdUrl   = flag.String("etcd", "http://localhost:4001", "Etcd URL")
+	dsn       string
+	TOPIC     string
+	SIZELIMIT int
 )
 
 var (
@@ -63,7 +64,7 @@ func process(entry *Entry) (err error) {
 		Title:  entry.Title,
 	}
 
-	limitReader := io.LimitReader(resp.Body, SIZELIMIT)
+	limitReader := io.LimitReader(resp.Body, int64(SIZELIMIT))
 	if a.HTML, err = ioutil.ReadAll(limitReader); err != nil {
 		return
 	}
@@ -113,21 +114,57 @@ func invalidContentType(ct string) (invalid bool) {
 	return
 }
 
+func setConfigs() (err error) {
+	client := etcd.New(*etcdUrl)
+	configs := []*etcd.Item{
+		&etcd.Item{
+			Key:     "/config/mongo/dsn",
+			Default: "mongodb://localhost:27017/ocular8",
+			Desc:    "Connection string to MongoDB",
+		},
+		&etcd.Item{
+			Key:     "/config/nsq/http",
+			Default: "http://localhost:4151",
+			Desc:    "NSQd HTTP address",
+		},
+		&etcd.Item{
+			Key:     "/handlers/download-entry/sizelimit",
+			Default: "2097152",
+			Desc:    "Size limit for downloaded entries",
+		},
+		&etcd.Item{
+			Key:     "/handlers/download-entry/topic",
+			Default: "article.id.extract.goose",
+			Desc:    "Topic to post article IDs to",
+		},
+	}
+	if err = client.GetAll(configs); err != nil {
+		return
+	}
+	dsn = configs[0].Value
+	if nsqURL, err = url.Parse(configs[1].Value); err != nil {
+		return
+	}
+	if SIZELIMIT, err = strconv.Atoi(configs[2].Value); err != nil {
+		return
+	}
+	TOPIC = configs[3].Value
+	return
+}
+
 func main() {
 	flag.Parse()
 
-	var err error
-	nsqURL, err = url.Parse(*nsqdhttp)
-	if err != nil {
-		glog.Fatalf("Error parsing %s: %s", *nsqdhttp, err)
-		return
+	if err := setConfigs(); err != nil {
+		glog.Fatalf("setConfigs(): %s", err)
 	}
+
 	nsqURL.Path = "/pub"
 	nsqURL.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
 
-	s, err := mgo.Dial(*dsn)
+	s, err := mgo.Dial(dsn)
 	if err != nil {
-		glog.Fatalf("mgo.Dial(%s): %s", *dsn, err)
+		glog.Fatalf("mgo.Dial(%s): %s", dsn, err)
 	}
 	defer s.Close()
 	db = s.DB("")

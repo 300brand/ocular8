@@ -1,22 +1,4 @@
 {
-	"Command": [
-		"./download-entry",
-		"-mongo",
-		"{{ .Config.Mongo }}",
-		"-nsqdhttp",
-		"{{ .Config.NsqdHTTP }}",
-		"-logtostderr",
-		"{{ .Data }}"
-	],
-	"NSQ": {
-		"Consume": {
-			"Topic":      "entry.id.download",
-			"Channel":    "download-entry",
-			"Concurrent": 10
-		},
-		"Produce": [
-			"article.id.extract.goose"
-		]
-	},
-	"Name": "Download Feed Entry"
+	"Name": "Download Feed Entry",
+	"Command": [ "./download-entry", "-etcd", "{{ .Config.Etcd }}", "{{ .Data }}" ]
 }
