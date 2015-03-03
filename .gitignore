@@ -2,5 +2,5 @@ __pycache__
 handlers/download-entry/download-entry
 handlers/enqueue-feeds/enqueue-feeds
 handlers/recount-articles/recount-articles
-handlers/split-lexisnexis/split-lexisnexis
+handlers/metabase/metabase
 o8-server
