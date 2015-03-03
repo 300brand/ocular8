@@ -1,17 +1,4 @@
 {
-	"Command": [
-		"./enqueue-feeds",
-		"-mongo",
-		"{{ .Config.Mongo }}",
-		"-nsqdhttp",
-		"{{ .Config.NsqdHTTP }}",
-		"-logtostderr"
-	],
-	"NSQ": {
-		"Produce": [
-			"feed.id.download"
-		]
-	},
-	"Frequency": 120,
-	"Name": "Enqueue Feeds"
+	"Name": "Enqueue Feeds",
+	"Command": [ "./enqueue-feeds", "-etcd", "{{ .Config.Etcd }}" ]
 }
