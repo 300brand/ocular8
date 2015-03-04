@@ -24,6 +24,7 @@ type Pub struct {
 type Feed struct {
 	Id           bson.ObjectId `bson:"_id"`
 	PubId        bson.ObjectId
+	MetabaseId   int64 `bson:",omitempty"`
 	Url          string
 	NumArticles  int
 	LastDownload time.Time
@@ -66,7 +67,6 @@ type Metabase struct {
 	Author        string
 	AuthorHomeUrl string
 	AuthorEmail   string
-	Companies     []string
 	SequenceId    string
 	Id            string
 }
