@@ -298,7 +298,7 @@ type SourceReach struct {
 }
 
 type Feed struct {
-	Id                 string   `xml:"id"`
+	Id                 int64    `xml:"id"`
 	Name               string   `xml:"name"`
 	Url                string   `xml:"url,omitempty"`
 	MediaType          string   `xml:"mediaType"`
@@ -322,4 +322,12 @@ type Rank struct {
 	AutoRank         string `xml:"autoRank"`
 	AutoRankOrder    string `xml:"autoRankOrder"`
 	InboundLinkCount string `xml:"inboundLinkCount"`
+}
+
+func (r Response) NewSequenceId() string {
+	if len(r.Articles) == 0 {
+		return ""
+	}
+	i := len(r.Articles) - 1
+	return r.Articles[i].SequenceId
 }
