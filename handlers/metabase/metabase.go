@@ -126,7 +126,6 @@ func main() {
 		glog.Warningf("Already running, will be able to run in %s", time.Duration(canRun)*time.Second)
 		return
 	}
-	return
 
 	nsqURL.Path = "/mpub"
 	nsqURL.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
@@ -146,4 +145,12 @@ func main() {
 	saveCopy(result)
 
 	glog.Infof("%#q", result)
+
+	if id := result.NewSequenceId(); id != "" {
+		glog.Infof("New SequenceId: %s", id)
+		_, err := etcd.New(*etcdUrl).Set("/handlers/metabase/sequenceid", id, uint64(sequenceReset.Seconds()))
+		if err != nil {
+			glog.Fatal(err)
+		}
+	}
 }
