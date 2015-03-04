@@ -3,9 +3,14 @@ package metabase
 import (
 	"encoding/xml"
 	"fmt"
-	"github.com/golang/glog"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/golang/glog"
 )
 
 var apiUrl *url.URL
@@ -16,7 +21,7 @@ func init() {
 
 // Fetches next set of articles from Metabase. If sequenceId is 0, performs
 // initial request which returns the latest articles in Metabase
-func Fetch(apikey, sequenceId string) (r *Response, err error) {
+func Fetch(apikey, sequenceId, store string) (r *Response, err error) {
 	query := make(url.Values)
 	query.Set("key", apikey)
 	query.Set("limit", "500")
@@ -39,8 +44,21 @@ func Fetch(apikey, sequenceId string) (r *Response, err error) {
 	}
 	defer resp.Body.Close()
 
+	var body io.Reader
+	if store != "" {
+		f, err := os.Create(filepath.Join(store, time.Now().Format("20060102T150405.xml")))
+		if err != nil {
+			glog.Error(err)
+			return nil, err
+		}
+		defer f.Close()
+		body = io.TeeReader(resp.Body, f)
+	} else {
+		body = resp.Body
+	}
+
 	r = new(Response)
-	if err = xml.NewDecoder(resp.Body).Decode(r); err != nil {
+	if err = xml.NewDecoder(body).Decode(r); err != nil {
 		return
 	}
 
