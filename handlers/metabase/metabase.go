@@ -3,6 +3,9 @@ package main
 import (
 	"encoding/xml"
 	"flag"
+	"fmt"
+	"github.com/300brand/ocular8/types"
+	"gopkg.in/mgo.v2/bson"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -96,12 +99,66 @@ func setConfigs() (err error) {
 	return
 }
 
-func saveCopy(r *metabase.Response) {
-	dir := *store
-	if dir == "" {
+func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
+	feed := new(types.Feed)
+	feedQ := bson.M{"metabaseid": a.Source.Feed.Id}
+	feedSel := bson.M{"pubid": 1}
+	err = db.C("feeds").Find(feedQ).Select(feedSel).One(feed)
+	if err == mgo.ErrNotFound {
+		pub := &types.Pub{
+			Id:          bson.NewObjectId(),
+			Name:        a.Source.Feed.Name,
+			Description: a.Source.Feed.Description,
+			NumFeeds:    1,
+		}
+		feed.Id = bson.NewObjectId()
+		feed.MetabaseId = a.Source.Feed.Id
+		feed.PubId = pub.Id
+		feed.Ignore = true
+		feed.Url = fmt.Sprintf("http://ocular8.com/feed/%d.xml", a.Source.Feed.Id)
+		if err = db.C("feeds").Insert(feed); err != nil {
+			return
+		}
+		if err = db.C("pubs").Insert(pub); err != nil {
+			return
+		}
+	}
+	if err != nil {
 		return
 	}
-	f, err := os.Create(filepath.Join(dir, time.Now().Format("20060102T150405.xml")))
+	return feed.Id, feed.PubId, nil
+}
+
+func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
+	ids = make([]bson.ObjectId, 0, len(r.Articles))
+	for i := range r.Articles {
+		ra := &r.Articles[i]
+		a := &types.Article{
+			Id:        bson.NewObjectId(),
+			Url:       ra.Url,
+			Title:     ra.Title,
+			Author:    ra.Author.Name,
+			Published: ra.Published(),
+			BodyText:  ra.Content,
+			BodyHTML:  ra.ContentWithMarkup,
+			HTML:      ra.XML(),
+			Metabase: &types.Metabase{
+				Author:        ra.Author.Name,
+				AuthorHomeUrl: ra.Author.HomeUrl,
+				AuthorEmail:   ra.Author.Email,
+				SequenceId:    ra.SequenceId,
+				Id:            ra.Id,
+			},
+		}
+		if a.PubId, a.FeedId, err = parents(ra); err != nil {
+			return
+		}
+	}
+	return
+}
+
+func saveCopy(r *metabase.Response, dir string) {
+	f, err := os.Create(filepath.Join(dir, time.Now().Format("20060102T150405.encoded.xml")))
 	if err != nil {
 		glog.Error(err)
 		return
@@ -137,14 +194,14 @@ func main() {
 	defer s.Close()
 	db = s.DB("")
 
-	result, err := metabase.Fetch(apikey, sequenceId)
+	result, err := metabase.Fetch(apikey, sequenceId, *store)
 	if err != nil {
 		glog.Fatalf("metabase.Fetch: %s", err)
 	}
 
-	saveCopy(result)
-
-	glog.Infof("%#q", result)
+	if dir := *store; dir != "" {
+		saveCopy(result, dir)
+	}
 
 	if id := result.NewSequenceId(); id != "" {
 		glog.Infof("New SequenceId: %s", id)
@@ -153,4 +210,11 @@ func main() {
 			glog.Fatal(err)
 		}
 	}
+
+	ids, err := saveArticles(result)
+	if err != nil {
+		glog.Fatalf("saveArticles: %s", err)
+	}
+
+	glog.Infof("%s", ids)
 }
