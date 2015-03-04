@@ -2,6 +2,7 @@ package metabase
 
 import (
 	"encoding/xml"
+	"time"
 )
 
 // Structure taken from XSD found at:
@@ -330,4 +331,14 @@ func (r Response) NewSequenceId() string {
 	}
 	i := len(r.Articles) - 1
 	return r.Articles[i].SequenceId
+}
+
+func (a Article) Published() (t time.Time) {
+	t, _ = time.Parse(time.RFC3339, a.PublishedDate)
+	return
+}
+
+func (a Article) XML() (data []byte) {
+	data, _ = xml.Marshal(a)
+	return
 }
