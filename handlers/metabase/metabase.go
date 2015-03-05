@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
-	"github.com/300brand/ocular8/types"
 	"gopkg.in/mgo.v2/bson"
 	"net/url"
 	"os"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/300brand/ocular8/lib/metabase"
+	"github.com/300brand/ocular8/types"
 	goetcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
 	"gopkg.in/mgo.v2"
@@ -24,12 +24,11 @@ var (
 	db            *mgo.Database
 	dsn           string
 	etcdUrl       = flag.String("etcd", "http://localhost:4001", "Etcd URL")
-	lastDownload  time.Time
+	nsqTopic      string
 	nsqURL        *url.URL
 	sequenceId    string
 	sequenceReset time.Duration
 	store         = flag.String("store", "", "Store a copy of results")
-	TOPIC         string
 )
 
 func setConfigs() (err error) {
@@ -73,7 +72,7 @@ func setConfigs() (err error) {
 	if nsqURL, err = url.Parse(configs[1].Value); err != nil {
 		return
 	}
-	TOPIC = configs[2].Value
+	nsqTopic = configs[2].Value
 	apikey = configs[3].Value
 	sequenceId = configs[4].Value
 	if sequenceReset, err = time.ParseDuration(configs[5].Value); err != nil {
@@ -131,6 +130,7 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 
 func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 	ids = make([]bson.ObjectId, 0, len(r.Articles))
+	docs := make([]interface{}, 0, len(r.Articles))
 	for i := range r.Articles {
 		ra := &r.Articles[i]
 		a := &types.Article{
@@ -153,7 +153,9 @@ func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 		if a.PubId, a.FeedId, err = parents(ra); err != nil {
 			return
 		}
+		docs = append(docs, a)
 	}
+	err = db.C("articles").Insert(docs...)
 	return
 }
 
@@ -184,9 +186,6 @@ func main() {
 		return
 	}
 
-	nsqURL.Path = "/mpub"
-	nsqURL.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
-
 	s, err := mgo.Dial(dsn)
 	if err != nil {
 		glog.Fatalf("mgo.Dial(%s): %s", dsn, err)
@@ -205,8 +204,8 @@ func main() {
 
 	if id := result.NewSequenceId(); id != "" {
 		glog.Infof("New SequenceId: %s", id)
-		_, err := etcd.New(*etcdUrl).Set("/handlers/metabase/sequenceid", id, uint64(sequenceReset.Seconds()))
-		if err != nil {
+		ttl := uint64(sequenceReset.Seconds())
+		if _, err := etcd.New(*etcdUrl).Set("/handlers/metabase/sequenceid", id, ttl); err != nil {
 			glog.Fatal(err)
 		}
 	}
@@ -215,6 +214,10 @@ func main() {
 	if err != nil {
 		glog.Fatalf("saveArticles: %s", err)
 	}
+	nsqURL.Path = "/mpub"
+	nsqURL.RawQuery = (url.Values{"topic": []string{nsqTopic}}).Encode()
 
-	glog.Infof("%s", ids)
+	if _, err = etcd.New(*etcdUrl).Set("/handlers/metabase/lastrun", time.Now(), 0); err != nil {
+		glog.Fatal(err)
+	}
 }
