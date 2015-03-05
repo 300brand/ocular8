@@ -28,11 +28,37 @@ func prime(mongoDSN string) (err error) {
 	db := s.DB("")
 	cp := db.C("pubs")
 	cf := db.C("feeds")
+	ca := db.C("articles")
 
 	glog.Infof("Empty pubs and feeds collections")
 	cp.RemoveAll(nil)
 	cf.RemoveAll(nil)
 
+	glog.Infof("Ensure indexes")
+	cf.EnsureIndex(mgo.Index{
+		Key:        []string{"metabaseid"},
+		Background: true,
+		Sparse:     true,
+		Unique:     true,
+	})
+	cf.EnsureIndexKey("pubid")
+	cf.EnsureIndexKey("ignore")
+	ca.EnsureIndexKey("feedid")
+	ca.EnsureIndexKey("pubid")
+	ca.EnsureIndex(mgo.Index{
+		Key:        []string{"url"},
+		Background: true,
+		Sparse:     true,
+		Unique:     true,
+	})
+	ca.EnsureIndex(mgo.Index{
+		Key:        []string{"metabase.id"},
+		Background: true,
+		Sparse:     true,
+		Unique:     true,
+	})
+
+	// Temporary structs to hold original data
 	type P struct {
 		Id          bson.ObjectId `json:"ID"`
 		Title       string
