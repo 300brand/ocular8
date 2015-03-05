@@ -54,7 +54,7 @@
 	"handlers": [
 		{
 			"handler": "download-entry",
-			"command": [ "./download-entry", "-etcd", "{{ .Config.etcd }}", "{{ .Data }}" ],
+			"command": [ "./download-entry", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
 					"key":     "active",
@@ -75,7 +75,7 @@
 		},
 		{
 			"handler": "download-feed",
-			"command": [ "./download-feed", "-etcd", "{{ .Config.etcd }}", "{{ .Data }}" ],
+			"command": [ "./download-feed", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
 					"key":     "active",
@@ -96,7 +96,7 @@
 		},
 		{
 			"handler": "elastic-save",
-			"command": [ "./elastic-save", "-etcd", "{{ .Config.etcd }}", "{{ .Data }}" ],
+			"command": [ "./elastic-save", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
 					"key":     "active",
@@ -133,7 +133,7 @@
 		},
 		{
 			"handler": "extract-goose",
-			"command": [ "./extract-goose", "-etcd", "{{ .Config.etcd }}", "{{ .Data }}" ],
+			"command": [ "./extract-goose", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
 					"key":     "active",
@@ -154,7 +154,7 @@
 		},
 		{
 			"handler": "extract-xpath",
-			"command": [ "./extract-xpath", "-etcd", "{{ .Config.etcd }}", "{{ .Data }}" ],
+			"command": [ "./extract-xpath", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
 					"key":     "active",
@@ -175,7 +175,7 @@
 		},
 		{
 			"handler": "metabase",
-			"command": [ "./metabase", "-etcd", "{{ .Config.etcd }}" ],
+			"command": [ "./metabase", "-etcd", "{{ .Etcd }}" ],
 			"config":  [
 				{
 					"key":     "active",
@@ -211,7 +211,7 @@
 		},
 		{
 			"handler": "recount-articles",
-			"command": [ "./recount-articles", "-etcd", "{{ .Config.etcd }}" ],
+			"command": [ "./recount-articles", "-etcd", "{{ .Etcd }}" ],
 			"config":  [
 				{
 					"key":     "active",
