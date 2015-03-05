@@ -37,7 +37,6 @@ func Fetch(apikey, sequenceId, store string) (r *Response, err error) {
 	}
 	req.Header.Add("Content-Encoding", "gzip")
 	req.Header.Add("Content-Type", "text/xml;charset=UTF-8")
-	glog.Infof("Requesting %s", req.RequestURI)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
