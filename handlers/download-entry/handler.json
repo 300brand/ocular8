@@ -1,4 +1,0 @@
-{
-	"Name": "Download Feed Entry",
-	"Command": [ "./download-entry", "-etcd", "{{ .Config.Etcd }}", "{{ .Data }}" ]
-}

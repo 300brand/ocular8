@@ -1,4 +1,0 @@
-{
-	"Name": "Enqueue Feeds",
-	"Command": [ "./enqueue-feeds", "-etcd", "{{ .Config.Etcd }}" ]
-}
