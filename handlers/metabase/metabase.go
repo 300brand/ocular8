@@ -227,6 +227,11 @@ func main() {
 		saveCopy(result, dir)
 	}
 
+	if len(result.Articles) == 0 {
+		glog.Warning("No new articles. Exiting")
+		return
+	}
+
 	if id := result.NewSequenceId(); id != "" {
 		glog.Infof("New SequenceId: %s", id)
 		ttl := uint64(sequenceReset.Seconds())
