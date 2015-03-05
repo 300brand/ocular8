@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/300brand/ocular8/lib/etcd"
@@ -22,12 +23,15 @@ import (
 
 var (
 	apikey        string
+	cacheHit      int
+	cacheMiss     int
 	canRun        int64
 	db            *mgo.Database
 	dsn           string
 	etcdUrl       = flag.String("etcd", "http://localhost:4001", "Etcd URL")
 	nsqTopic      string
 	nsqURL        *url.URL
+	parentCache   = make(map[int64][2]bson.ObjectId)
 	sequenceId    string
 	sequenceReset time.Duration
 	store         = flag.String("store", "", "Store a copy of results")
@@ -101,6 +105,14 @@ func setConfigs() (err error) {
 }
 
 func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
+	idSet, ok := parentCache[a.Source.Feed.Id]
+	if ok {
+		cacheHit++
+		pubId, feedId = idSet[0], idSet[1]
+		return
+	}
+
+	cacheMiss++
 	feed := new(types.Feed)
 	feedQ := bson.M{"metabaseid": a.Source.Feed.Id}
 	feedSel := bson.M{"pubid": 1}
@@ -127,7 +139,9 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 	if err != nil {
 		return
 	}
-	return feed.Id, feed.PubId, nil
+	pubId, feedId = feed.PubId, feed.Id
+	parentCache[a.Source.Feed.Id] = [2]bson.ObjectId{pubId, feedId}
+	return
 }
 
 func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
@@ -135,17 +149,20 @@ func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 	docs := make([]interface{}, 0, len(r.Articles))
 	for i := range r.Articles {
 		ra := &r.Articles[i]
+		author := ra.Author.Name
+		author = strings.TrimPrefix(author, "By ")
+		author = strings.TrimPrefix(author, "By ") // Some have it twice..
 		a := &types.Article{
 			Id:        bson.NewObjectId(),
 			Url:       ra.Url,
 			Title:     ra.Title,
-			Author:    ra.Author.Name,
+			Author:    author,
 			Published: ra.Published(),
 			BodyText:  ra.Content,
 			BodyHTML:  ra.ContentWithMarkup,
 			HTML:      ra.XML(),
 			Metabase: &types.Metabase{
-				Author:        ra.Author.Name,
+				Author:        author,
 				AuthorHomeUrl: ra.Author.HomeUrl,
 				AuthorEmail:   ra.Author.Email,
 				SequenceId:    ra.SequenceId,
@@ -156,6 +173,7 @@ func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 			return
 		}
 		docs = append(docs, a)
+		ids = append(ids, a.Id)
 	}
 	err = db.C("articles").Insert(docs...)
 	return
@@ -181,6 +199,11 @@ func main() {
 
 	if err := setConfigs(); err != nil {
 		glog.Fatalf("setConfigs(): %s", err)
+	}
+
+	if apikey == "" {
+		glog.Errorf("API Key undefined. Please provide key in /handlers/metabase/apikey")
+		os.Exit(2)
 	}
 
 	if canRun > 0 {
@@ -216,6 +239,7 @@ func main() {
 	if err != nil {
 		glog.Fatalf("saveArticles: %s", err)
 	}
+	glog.Infof("saveArticles cache hit %d miss %d", cacheHit, cacheMiss)
 
 	payload := make([]byte, 0, len(ids)*25)
 	for _, id := range ids {
