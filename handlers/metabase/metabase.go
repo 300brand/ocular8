@@ -123,6 +123,7 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 			Name:        a.Source.Feed.Name,
 			Description: a.Source.Feed.Description,
 			NumFeeds:    1,
+			NeedsReview: true,
 		}
 		feed.Id = bson.NewObjectId()
 		feed.MetabaseId = a.Source.Feed.Id

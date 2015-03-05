@@ -19,6 +19,7 @@ type Pub struct {
 	XPathDate   []string `bson:",omitempty"`
 	XPathTitle  []string `bson:",omitempty"`
 	LastUpdate  time.Time
+	NeedsReview bool
 }
 
 type Feed struct {
