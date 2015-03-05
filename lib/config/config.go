@@ -19,12 +19,20 @@ type HandlerConfig struct {
 
 var Data Config
 
+func (c Config) AssetsDir() string {
+	return find(c.Config, "assets")
+}
+
 func (c Config) Etcd() string {
 	return find(c.Config, "etcd")
 }
 
 func (c Config) Elastic() string {
 	return find(c.Config, "elastic")
+}
+
+func (c Config) HandlersDir() string {
+	return find(c.Config, "handlers")
 }
 
 func (c Config) Mongo() string {
@@ -35,7 +43,7 @@ func (c Config) Nsqhttp() string {
 	return find(c.Config, "nsqhttp")
 }
 
-func (c Config) Listen() string {
+func (c Config) WebListen() string {
 	return find(c.Config, "weblisten")
 }
 
