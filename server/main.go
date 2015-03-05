@@ -5,22 +5,22 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/300brand/ocular8/server/config"
+	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/server/web"
 	"github.com/golang/glog"
 )
 
 func main() {
-	config.Parse()
+	if err := config.Parse(); err != nil {
+		glog.Fatalf("config.Parse(): %s", err)
+	}
 
 	if *doPrime {
-		if err := prime(config.Config.Mongo); err != nil {
+		if err := prime(config.Mongo()); err != nil {
 			glog.Fatalf("[prime] %s", err)
 		}
 		return
 	}
-
-	glog.Infof("Config %+v", config.Config)
 
 	// Listen for signals
 	signalChan := make(chan os.Signal, 1)
@@ -29,17 +29,17 @@ func main() {
 	// Start web frontend
 	go func(addr, dir, mongo string) {
 		if err := web.Mongo(mongo); err != nil {
-			glog.Fatalf("web.Mongo(%s): %s", config.Config.Mongo, err)
+			glog.Fatalf("web.Mongo(%s): %s", mongo, err)
 		}
 		if err := http.ListenAndServe(addr, web.Handler(dir)); err != nil {
 			glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
 		}
-	}(config.Config.WebListen, config.Config.WebAssets, config.Config.Mongo)
+	}(config.WebListen(), config.AssetsDir(), config.Mongo())
 
 	// Start handlers
-	stopChan, err := setupHandlers(config.Config.Handlers)
-	if err != nil {
-		glog.Fatalf("setupHandlers(%s): %s", config.Config.Handlers, err)
+	stopChan := make(chan bool)
+	if err := Handlers(config.Data.Handlers, stopChan); err != nil {
+		glog.Fatalf("Handlers(): %s", err)
 	}
 
 	// Idle
