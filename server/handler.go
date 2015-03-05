@@ -4,115 +4,138 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/300brand/ocular8/server/config"
-	"github.com/300brand/ocular8/server/handler"
+	"github.com/300brand/ocular8/lib/config"
+	"github.com/300brand/ocular8/lib/handler"
 	"github.com/bitly/go-nsq"
 	"github.com/golang/glog"
 )
 
-func consumerHandler(h handler.Handler) (f nsq.HandlerFunc) {
-	return func(msg *nsq.Message) (err error) {
-		glog.Infof("%s: %s %d", h.Name, time.Unix(0, msg.Timestamp), msg.Attempts)
-		buf := bytes.NewBuffer(msg.Body)
-		return h.Run(buf.String())
-	}
-}
+func Handlers(handlers []config.HandlerConfig, stopChan chan bool) (err error) {
+	glog.Infof("Handlers: %+v", handlers)
 
-func poll(stopChan chan bool, h handler.Handler) {
-	duration := time.Hour / time.Duration(h.Frequency)
-	glog.Infof("Polling %s every %s", h.Name, duration)
-	for {
-		glog.Infof("Polling %s", h.Name)
-		if err := h.Run(time.Now().Format(time.RFC3339Nano)); err != nil {
-			glog.Errorf("Poll run %s: %s", h.Name, err)
+	stopChans := make([]chan bool, 0, len(handlers))
+	for i := range handlers {
+		cfg := &handlers[i]
+		if cfg.IsConsumer() {
+			ch := make(chan bool)
+			go Consumer(cfg, ch)
+			stopChans = append(stopChans, ch)
 		}
-		select {
-		case <-time.After(duration):
-		case <-stopChan:
-			glog.Infof("Stop polling: %s", h.Name)
-			return
+		if cfg.IsProducer() {
+			ch := make(chan bool)
+			go Producer(cfg, ch)
+			stopChans = append(stopChans, ch)
 		}
 	}
-}
 
-func setupHandlers(dir string) (stopChan chan bool, err error) {
-	handlerConfigs, err := handler.ParseConfigs(dir)
-	if err != nil {
-		glog.Errorf("parseConfigs: %s", err)
-		return
-	}
-
-	stopChan, poll, consume := make(chan bool), make(chan bool), make(chan bool)
-
-	go func(ch chan bool) {
-		<-ch
-		poll <- true
-		consume <- true
-		<-poll
-		<-consume
-		ch <- true
-	}(stopChan)
-
-	go startPolling(poll, handlerConfigs)
-	go startConsumers(consume, handlerConfigs)
-
+	go func() {
+		<-stopChan
+		glog.Infof("Shutting down handlers")
+		for _, ch := range stopChans {
+			ch <- true
+			<-ch
+		}
+		stopChan <- true
+	}()
 	return
 }
 
-func startConsumers(stopChan chan bool, configs []handler.Handler) {
-	glog.Infof("Consumers: Starting")
-
-	consumers := make([]*nsq.Consumer, 0, len(configs))
-	for _, h := range configs {
-		if h.NSQ.Consume.Topic == "" {
-			continue
-		}
-		nsqConfig := nsq.NewConfig()
-		nsqConfig.Set("client_id", h.Name)
-		topic, channel := h.NSQ.Consume.Topic, h.NSQ.Consume.Channel
-		glog.Infof("Setting up consumer for %s -> %s", topic, channel)
-		consumer, err := nsq.NewConsumer(topic, channel, nsqConfig)
-		if err != nil {
-			glog.Fatalf("nsq.NewConsumer(%s, %s, config): %s", topic, channel, err)
-		}
-		concurrency := 1
-		if c := h.NSQ.Consume.Concurrent; c > concurrency {
-			concurrency = c
-		}
-		consumer.ChangeMaxInFlight(concurrency)
-		consumer.AddConcurrentHandlers(consumerHandler(h), concurrency)
-		if err := consumer.ConnectToNSQD(config.Config.NsqdTCP); err != nil {
-			glog.Fatalf("nsq.ConnectToNSQD(%s): %s", config.Config.NsqdTCP, err)
-		}
-		consumers = append(consumers, consumer)
-	}
-
+func Consumer(cfg *config.HandlerConfig, stopChan chan bool) {
+	glog.Infof("Starting consumer: %s", cfg.Handler)
 	<-stopChan
-	glog.Infof("Consumers: Exiting")
-	for _, c := range consumers {
-		c.Stop()
-		<-c.StopChan
-	}
+	glog.Infof("Stopping consumer: %s", cfg.Handler)
 	stopChan <- true
 }
 
-func startPolling(stopChan chan bool, configs []handler.Handler) {
-	glog.Infof("Polling: Starting")
-
-	chans := make([]chan bool, 0, len(configs))
-	for _, h := range configs {
-		if h.Frequency <= 0 {
-			continue
-		}
-		ch := make(chan bool)
-		go poll(ch, h)
-		chans = append(chans, ch)
-	}
+func Producer(cfg *config.HandlerConfig, stopChan chan bool) {
+	glog.Infof("Starting producer: %s", cfg.Handler)
+	item := cfg.FrequencyItem()
+	item.Changed = make(chan bool)
 
 	<-stopChan
-	glog.Infof("Polling: Exiting")
-	for _, ch := range chans {
-		ch <- true
-	}
+	glog.Infof("Stopping producer: %s", cfg.Handler)
 	stopChan <- true
 }
+
+func consumerHandler(h handler.Handler) (f nsq.HandlerFunc) {
+	return func(msg *nsq.Message) (err error) {
+		glog.Infof("%s: %s %d", h.Command[0], time.Unix(0, msg.Timestamp), msg.Attempts)
+		buf := bytes.NewBuffer(msg.Body)
+		return h.Run(config.Etcd(), buf.String())
+	}
+}
+
+// func poll(stopChan chan bool, h handler.Handler) {
+// 	duration := time.Hour / time.Duration(h.Frequency)
+// 	glog.Infof("Polling %s every %s", h.Name, duration)
+// 	for {
+// 		glog.Infof("Polling %s", h.Name)
+// 		if err := h.Run(time.Now().Format(time.RFC3339Nano)); err != nil {
+// 			glog.Errorf("Poll run %s: %s", h.Name, err)
+// 		}
+// 		select {
+// 		case <-time.After(duration):
+// 		case <-stopChan:
+// 			glog.Infof("Stop polling: %s", h.Name)
+// 			return
+// 		}
+// 	}
+// }
+
+// func startConsumers(stopChan chan bool, configs []handler.Handler) {
+// 	glog.Infof("Consumers: Starting")
+
+// 	consumers := make([]*nsq.Consumer, 0, len(configs))
+// 	for _, h := range configs {
+// 		if h.NSQ.Consume.Topic == "" {
+// 			continue
+// 		}
+// 		nsqConfig := nsq.NewConfig()
+// 		nsqConfig.Set("client_id", h.Name)
+// 		topic, channel := h.NSQ.Consume.Topic, h.NSQ.Consume.Channel
+// 		glog.Infof("Setting up consumer for %s -> %s", topic, channel)
+// 		consumer, err := nsq.NewConsumer(topic, channel, nsqConfig)
+// 		if err != nil {
+// 			glog.Fatalf("nsq.NewConsumer(%s, %s, config): %s", topic, channel, err)
+// 		}
+// 		concurrency := 1
+// 		if c := h.NSQ.Consume.Concurrent; c > concurrency {
+// 			concurrency = c
+// 		}
+// 		consumer.ChangeMaxInFlight(concurrency)
+// 		consumer.AddConcurrentHandlers(consumerHandler(h), concurrency)
+// 		if err := consumer.ConnectToNSQD(config.Config.NsqdTCP); err != nil {
+// 			glog.Fatalf("nsq.ConnectToNSQD(%s): %s", config.Config.NsqdTCP, err)
+// 		}
+// 		consumers = append(consumers, consumer)
+// 	}
+
+// 	<-stopChan
+// 	glog.Infof("Consumers: Exiting")
+// 	for _, c := range consumers {
+// 		c.Stop()
+// 		<-c.StopChan
+// 	}
+// 	stopChan <- true
+// }
+
+// func startPolling(stopChan chan bool, configs []handler.Handler) {
+// 	glog.Infof("Polling: Starting")
+
+// 	chans := make([]chan bool, 0, len(configs))
+// 	for _, h := range configs {
+// 		if h.Frequency <= 0 {
+// 			continue
+// 		}
+// 		ch := make(chan bool)
+// 		go poll(ch, h)
+// 		chans = append(chans, ch)
+// 	}
+
+// 	<-stopChan
+// 	glog.Infof("Polling: Exiting")
+// 	for _, ch := range chans {
+// 		ch <- true
+// 	}
+// 	stopChan <- true
+// }
