@@ -19,40 +19,44 @@ type HandlerConfig struct {
 
 var Data Config
 
-func (c Config) AssetsDir() string {
-	return find(c.Config, "assets")
+func AssetsDir() string {
+	return findValue(Data.Config, "assets")
 }
 
-func (c Config) Etcd() string {
-	return find(c.Config, "etcd")
+func Etcd() string {
+	return findValue(Data.Config, "etcd")
 }
 
-func (c Config) Elastic() string {
-	return find(c.Config, "elastic")
+func Elastic() string {
+	return findValue(Data.Config, "elastic")
 }
 
-func (c Config) HandlersDir() string {
-	return find(c.Config, "handlers")
+func HandlersDir() string {
+	return findValue(Data.Config, "handlers")
 }
 
-func (c Config) Mongo() string {
-	return find(c.Config, "mongo")
+func Mongo() string {
+	return findValue(Data.Config, "mongo")
 }
 
-func (c Config) Nsqhttp() string {
-	return find(c.Config, "nsqhttp")
+func Nsqhttp() string {
+	return findValue(Data.Config, "nsqhttp")
 }
 
-func (c Config) WebListen() string {
-	return find(c.Config, "weblisten")
+func WebListen() string {
+	return findValue(Data.Config, "weblisten")
 }
 
-func (h HandlerConfig) ConsumeTopic() string {
-	return find(h.Config, "consume")
+func (h HandlerConfig) Consume() string {
+	return findValue(h.Config, "consume")
+}
+
+func (h HandlerConfig) ConsumeItem() *etcd.Item {
+	return findItem(h.Config, "frequency")
 }
 
 func (h HandlerConfig) Frequency() time.Duration {
-	dur, err := time.ParseDuration(find(h.Config, "frequency"))
+	dur, err := time.ParseDuration(findValue(h.Config, "frequency"))
 	if err != nil {
 		glog.Errorf("Invalid frequency for %q: %s", h.Handler, err)
 		return time.Duration(0)
@@ -60,19 +64,30 @@ func (h HandlerConfig) Frequency() time.Duration {
 	return dur
 }
 
+func (h HandlerConfig) FrequencyItem() *etcd.Item {
+	return findItem(h.Config, "frequency")
+}
+
 func (h HandlerConfig) IsConsumer() bool {
-	return h.ConsumeTopic() != ""
+	return h.ConsumeItem() != nil
 }
 
 func (h HandlerConfig) IsProducer() bool {
-	return h.Frequency() > time.Duration(0)
+	return h.FrequencyItem() != nil
 }
 
-func find(items []etcd.Item, key string) string {
+func findItem(items []etcd.Item, key string) *etcd.Item {
 	for i := range items {
 		if items[i].Key == key {
-			return items[i].Value
+			return &items[i]
 		}
+	}
+	return nil
+}
+
+func findValue(items []etcd.Item, key string) string {
+	if item := findItem(items, key); item != nil {
+		return item.Value
 	}
 	return ""
 }
