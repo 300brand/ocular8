@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
 	"flag"
 	"fmt"
 	"gopkg.in/mgo.v2/bson"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -214,10 +216,23 @@ func main() {
 	if err != nil {
 		glog.Fatalf("saveArticles: %s", err)
 	}
+
+	payload := make([]byte, 0, len(ids)*25)
+	for _, id := range ids {
+		payload = append(payload, []byte(id.Hex())...)
+		payload = append(payload, '\n')
+	}
+	body := bytes.NewReader(payload)
+	bodyType := "multipart/form-data"
+
 	nsqURL.Path = "/mpub"
 	nsqURL.RawQuery = (url.Values{"topic": []string{nsqTopic}}).Encode()
+	if _, err := http.Post(nsqURL.String(), bodyType, body); err != nil {
+		glog.Fatalf("http.Post(%s): %s", nsqURL.String(), err)
+	}
+	glog.Infof("Sent %d Article IDs to %s", len(ids), nsqURL)
 
-	if _, err = etcd.New(*etcdUrl).Set("/handlers/metabase/lastrun", time.Now(), 0); err != nil {
+	if _, err = etcd.New(*etcdUrl).Set("/handlers/metabase/lastrun", time.Now().Format(time.RFC3339), 0); err != nil {
 		glog.Fatal(err)
 	}
 }
