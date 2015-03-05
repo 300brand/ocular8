@@ -14,10 +14,10 @@ type Pub struct {
 	NumArticles int
 	NumFeeds    int
 	NumReaders  int
-	XPathBody   []string
-	XPathAuthor []string
-	XPathDate   []string
-	XPathTitle  []string
+	XPathBody   []string `bson:",omitempty"`
+	XPathAuthor []string `bson:",omitempty"`
+	XPathDate   []string `bson:",omitempty"`
+	XPathTitle  []string `bson:",omitempty"`
 	LastUpdate  time.Time
 }
 
@@ -44,9 +44,9 @@ type Article struct {
 	BodyHTML  string
 	HTML      []byte
 	LoadTime  time.Duration
-	Entry     *Entry
-	Goose     *Goose
-	Metabase  *Metabase
+	Entry     *Entry    `bson:",omitempty"`
+	Goose     *Goose    `bson:",omitempty"`
+	Metabase  *Metabase `bson:",omitempty"`
 }
 
 type Entry struct {
