@@ -10,6 +10,7 @@ type Item struct {
 	Default string
 	Desc    string
 	Value   string
+	Changed chan bool
 }
 
 type Client struct {

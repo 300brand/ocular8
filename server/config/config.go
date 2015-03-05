@@ -1,46 +1,70 @@
 package config
 
 import (
-	"flag"
+	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/golang/glog"
+	"time"
 )
 
-type ConfigType struct {
-	Etcd          string
-	Mongo         string
-	NsqdHTTP      string
-	NsqdTCP       string
-	NsqLookupdTCP string
-	Handlers      string
-	WebAssets     string
-	WebListen     string
+type Config struct {
+	Config   []etcd.Item
+	Handlers []HandlerConfig
 }
 
-var Config = &ConfigType{
-	Etcd:          "http://127.0.0.1:4001",
-	Mongo:         "mongodb://127.0.0.1:27017/ocular8",
-	NsqdHTTP:      "http://127.0.0.1:4151",
-	NsqdTCP:       "127.0.0.1:4150",
-	NsqLookupdTCP: "127.0.0.1:4160",
-	Handlers:      "handlers",
-	WebAssets:     "assets",
-	WebListen:     ":8080",
+type HandlerConfig struct {
+	Handler string
+	Command []string
+	Config  []etcd.Item
 }
 
-func init() {
-	flag.StringVar(&Config.Handlers, "handlers", Config.Handlers, "Directory for handlers")
-	flag.StringVar(&Config.WebAssets, "assets", Config.WebAssets, "Directory for web assets")
-	// flag.StringVar(&Config.WebListen, "listen", Config.WebListen, "Web listen address")
-	flag.StringVar(&Config.Etcd, "etcd", Config.Etcd, "Etcd server for configs")
-	// flag.StringVar(&Config.NsqdHTTP, "nsqdhttp", Config.NsqdHTTP, "Nsqd server for queue (HTTP)")
-	// flag.StringVar(&Config.NsqdTCP, "nsqdtcp", Config.NsqdTCP, "Nsqd server for queue (TCP)")
-	// flag.StringVar(&Config.NsqLookupdTCP, "nsqlookupdtcp", Config.NsqLookupdTCP, "Nsq lookupd server for queue (TCP)")
-	// flag.StringVar(&Config.Mongo, "mongo", Config.Mongo, "Mongo server")
+var Data Config
+
+func (c Config) Etcd() string {
+	return find(c.Config, "etcd")
 }
 
-func Parse() {
-	flag.Parse()
-	if err := FromEtcd(Config.Etcd); err != nil {
-		glog.Fatalf("config.FromEtcd(%s): %s", Config.Etcd, err)
+func (c Config) Elastic() string {
+	return find(c.Config, "elastic")
+}
+
+func (c Config) Mongo() string {
+	return find(c.Config, "mongo")
+}
+
+func (c Config) Nsqhttp() string {
+	return find(c.Config, "nsqhttp")
+}
+
+func (c Config) Listen() string {
+	return find(c.Config, "weblisten")
+}
+
+func (h HandlerConfig) ConsumeTopic() string {
+	return find(h.Config, "consume")
+}
+
+func (h HandlerConfig) Frequency() time.Duration {
+	dur, err := time.ParseDuration(find(h.Config, "frequency"))
+	if err != nil {
+		glog.Errorf("Invalid frequency for %q: %q - %s", h.Handler, s, err)
+		return time.Duration(0)
 	}
+	return dur
+}
+
+func (h HandlerConfig) IsConsumer() bool {
+	return h.ConsumeTopic() != ""
+}
+
+func (h HandlerConfig) IsProducer() bool {
+	return h.Frequency() > time.Duration(0)
+}
+
+func find(items []etcd.Item, key string) string {
+	for i := range h.Config {
+		if h.Config[i].Key == key {
+			return h.Config[i].Value
+		}
+	}
+	return ""
 }
