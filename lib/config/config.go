@@ -46,7 +46,7 @@ func (h HandlerConfig) ConsumeTopic() string {
 func (h HandlerConfig) Frequency() time.Duration {
 	dur, err := time.ParseDuration(find(h.Config, "frequency"))
 	if err != nil {
-		glog.Errorf("Invalid frequency for %q: %q - %s", h.Handler, s, err)
+		glog.Errorf("Invalid frequency for %q: %s", h.Handler, err)
 		return time.Duration(0)
 	}
 	return dur
@@ -61,9 +61,9 @@ func (h HandlerConfig) IsProducer() bool {
 }
 
 func find(items []etcd.Item, key string) string {
-	for i := range h.Config {
-		if h.Config[i].Key == key {
-			return h.Config[i].Value
+	for i := range items {
+		if items[i].Key == key {
+			return items[i].Value
 		}
 	}
 	return ""
