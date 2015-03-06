@@ -198,11 +198,6 @@
 					"desc":    "Metabase API Key"
 				},
 				{
-					"key":     "sequenceid",
-					"default": "",
-					"desc":    "Metabase Sequence ID - Do not touch unless things go pear-shaped,"
-				},
-				{
 					"key":     "sequencereset",
 					"default": "48h",
 					"desc":    "How long to wait before cutting losses and resetting sequenceId. Used in the event of power/network loss"
