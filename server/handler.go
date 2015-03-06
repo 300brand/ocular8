@@ -10,6 +10,8 @@ import (
 	"github.com/golang/glog"
 )
 
+const MinFrequency = 10 * time.Second
+
 func Handlers(handlers []config.HandlerConfig, stopChan chan bool) (err error) {
 	glog.Infof("Handlers: %+v", handlers)
 
@@ -41,29 +43,67 @@ func Handlers(handlers []config.HandlerConfig, stopChan chan bool) (err error) {
 }
 
 func Consumer(cfg *config.HandlerConfig, stopChan chan bool) {
-	glog.Infof("Starting consumer: %s", cfg.Handler)
+	glog.Infof("[%s] Starting consumer", cfg.Handler)
 	<-stopChan
-	glog.Infof("Stopping consumer: %s", cfg.Handler)
+	glog.Infof("[%s] Stopping consumer", cfg.Handler)
 	stopChan <- true
 }
 
-func Producer(cfg *config.HandlerConfig, stopChan chan bool) {
-	glog.Infof("Starting producer: %s", cfg.Handler)
-	item := cfg.FrequencyItem()
-	item.Changed = make(chan bool)
+func Producer(p *config.HandlerConfig, stopChan chan bool) {
+	glog.Infof("[%s] Starting producer", p.Handler)
+	active := p.ActiveItem()
+	active.Changed = make(chan bool)
+	freq := p.FrequencyItem()
+	freq.Changed = make(chan bool)
 
-	<-stopChan
-	glog.Infof("Stopping producer: %s", cfg.Handler)
-	stopChan <- true
-}
+Loop:
+	for {
+		if !p.Active() {
+			glog.Infof("[%s] Waiting to become active again", p.Handler)
+			select {
+			case <-active.Changed:
+				continue
+			case <-stopChan:
+				glog.Infof("[%s] Got stop", p.Handler)
+				break Loop
+			}
+		}
 
-func consumerHandler(h handler.Handler) (f nsq.HandlerFunc) {
-	return func(msg *nsq.Message) (err error) {
-		glog.Infof("%s: %s %d", h.Command[0], time.Unix(0, msg.Timestamp), msg.Attempts)
-		buf := bytes.NewBuffer(msg.Body)
-		return h.Run(config.Etcd(), buf.String())
+		if f := p.Frequency(); f < MinFrequency {
+			glog.Errorf("[%s] Current frequency (%s) shorter than minimum (%s). Backing off until changed.", p.Handler, f, MinFrequency)
+			select {
+			case <-freq.Changed:
+				continue
+			case <-stopChan:
+				glog.Infof("[%s] Got stop", p.Handler)
+				break Loop
+			}
+			continue
+		}
+
+		select {
+		case <-active.Changed:
+			glog.Infof("[%s] Active state changed to %v", p.Handler, p.Active())
+		case <-time.After(p.Frequency()):
+			glog.Infof("[%s] Running command", p.Handler)
+		case <-freq.Changed:
+			glog.Infof("[%s] Frequency changed to %s", p.Handler, p.Frequency())
+		case <-stopChan:
+			glog.Infof("[%s] Got stop", p.Handler)
+			break Loop
+		}
 	}
+	glog.Infof("[%s] Stopping producer", p.Handler)
+	stopChan <- true
 }
+
+// func consumerHandler(h handler.Handler) (f nsq.HandlerFunc) {
+// 	return func(msg *nsq.Message) (err error) {
+// 		glog.Infof("%s: %s %d", h.Command[0], time.Unix(0, msg.Timestamp), msg.Attempts)
+// 		buf := bytes.NewBuffer(msg.Body)
+// 		return h.Run(config.Etcd(), buf.String())
+// 	}
+// }
 
 // func poll(stopChan chan bool, h handler.Handler) {
 // 	duration := time.Hour / time.Duration(h.Frequency)
