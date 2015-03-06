@@ -17,13 +17,13 @@ import (
 )
 
 var (
-	etcdUrl     = flag.String("etcd", "http://localhost:4001", "Etcd URL")
-	dsn         string
-	nsqURL      *url.URL
-	limit       int
-	threshold   int
-	TOPIC       string
-	ENTRY_TOPIC string
+	etcdUrl    = flag.String("etcd", "http://localhost:4001", "Etcd URL")
+	dsn        string
+	nsqURL     *url.URL
+	LIMIT      int
+	THRESHOLD  int
+	TOPIC      string
+	FEED_TOPIC string
 )
 
 var (
@@ -56,7 +56,7 @@ func checkStats() (err error) {
 
 	for _, topic := range stats.Data.Topics {
 		switch topic.Name {
-		case TOPIC, ENTRY_TOPIC:
+		case TOPIC, FEED_TOPIC:
 			// keep processing
 		default:
 			continue
@@ -72,8 +72,8 @@ func checkStats() (err error) {
 			err = fmt.Errorf("%s No channels to handle topic", topic.Name)
 		case topic.Depth > 0:
 			err = fmt.Errorf("%s Topic handlers not active, %d in topic queue", topic.Name, topic.Depth)
-		case chanDepth > threshold:
-			err = fmt.Errorf("%s Channel depth (%d) exceeds threshold (%d)", topic.Name, chanDepth, threshold)
+		case chanDepth > THRESHOLD:
+			err = fmt.Errorf("%s Channel depth (%d) exceeds threshold (%d)", topic.Name, chanDepth, THRESHOLD)
 		}
 
 		if err != nil {
@@ -85,54 +85,28 @@ func checkStats() (err error) {
 }
 
 func setConfigs() (err error) {
+	var nsqhttp, limit, threshold string
 	client := etcd.New(*etcdUrl)
-	configs := []*etcd.Item{
-		&etcd.Item{
-			Key:     "/config/mongo/dsn",
-			Default: "mongodb://localhost:27017/ocular8",
-			Desc:    "Connection string to MongoDB",
-		},
-		&etcd.Item{
-			Key:     "/config/nsq/http",
-			Default: "http://localhost:4151",
-			Desc:    "NSQd HTTP address",
-		},
-		&etcd.Item{
-			Key:     "/handlers/enqueue-feeds/limit",
-			Default: "10",
-			Desc:    "Max number of feeds to enqueue per batch",
-		},
-		&etcd.Item{
-			Key:     "/handlers/enqueue-feeds/threshold",
-			Default: "100",
-			Desc:    "Entry threshold to avoid pushing more feeds into download queue. Applies to both feed and entry downloads.",
-		},
-		&etcd.Item{
-			Key:     "/handlers/enqueue-feeds/topic",
-			Default: "feed.id.download",
-			Desc:    "Topic to post feed IDs to",
-		},
-		&etcd.Item{
-			Key:     "/handlers/download-feed/topic",
-			Default: "entry.id.download",
-			Desc:    "Topic to post entry IDs to",
-		},
-	}
-	if err = client.GetAll(configs); err != nil {
+	err = client.GetAll(map[string]*string{
+		"/config/mongo":                     &dsn,
+		"/config/nsqhttp":                   &nsqhttp,
+		"/handlers/enqueue-feeds/limit":     &limit,
+		"/handlers/enqueue-feeds/threshold": &threshold,
+		"/handlers/enqueue-feeds/topic":     &TOPIC,
+		"/handlers/download-feed/topic":     &FEED_TOPIC,
+	})
+	if err != nil {
 		return
 	}
-	dsn = configs[0].Value
-	if nsqURL, err = url.Parse(configs[1].Value); err != nil {
+	if nsqURL, err = url.Parse(nsqhttp); err != nil {
 		return
 	}
-	if limit, err = strconv.Atoi(configs[2].Value); err != nil {
+	if LIMIT, err = strconv.Atoi(limit); err != nil {
 		return
 	}
-	if threshold, err = strconv.Atoi(configs[3].Value); err != nil {
+	if THRESHOLD, err = strconv.Atoi(threshold); err != nil {
 		return
 	}
-	TOPIC = configs[4].Value
-	ENTRY_TOPIC = configs[5].Value
 	return
 }
 
@@ -174,9 +148,9 @@ func main() {
 	sort := "lastdownload"
 	ids := make([]struct {
 		Id bson.ObjectId `bson:"_id"`
-	}, 0, limit)
+	}, 0, LIMIT)
 
-	if err = s.DB("").C("feeds").Find(query).Limit(limit).Select(sel).Sort(sort).All(&ids); err != nil {
+	if err = s.DB("").C("feeds").Find(query).Limit(LIMIT).Select(sel).Sort(sort).All(&ids); err != nil {
 		glog.Fatalf("mgo.Find: %s", err)
 	}
 
