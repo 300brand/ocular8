@@ -38,50 +38,23 @@ var (
 )
 
 func setConfigs() (err error) {
+	var nsqhttp, reset string
 	client := etcd.New(*etcdUrl)
-	configs := []*etcd.Item{
-		&etcd.Item{
-			Key:     "/config/mongo/dsn",
-			Default: "mongodb://localhost:27017/ocular8",
-			Desc:    "Connection string to MongoDB",
-		},
-		&etcd.Item{
-			Key:     "/config/nsq/http",
-			Default: "http://localhost:4151",
-			Desc:    "NSQd HTTP address",
-		},
-		&etcd.Item{
-			Key:     "/handlers/metabase/topic",
-			Default: "article.id.elastic",
-			Desc:    "Topic to post article IDs to",
-		},
-		&etcd.Item{
-			Key:     "/handlers/metabase/apikey",
-			Default: "",
-			Desc:    "Metabase API Key",
-		},
-		&etcd.Item{
-			Key:     "/handlers/metabase/sequenceid",
-			Default: "",
-			Desc:    "Metabase Sequence ID - Do not touch unless things go pear-shaped,",
-		},
-		&etcd.Item{
-			Key:     "/handlers/metabase/sequencereset",
-			Default: "48h",
-			Desc:    "How long to wait before cutting losses and resetting sequenceId. Used in the event of power/network loss",
-		},
-	}
-	if err = client.GetAll(configs); err != nil {
+	err = client.GetAll(map[string]*string{
+		"/config/mongo":                    &dsn,
+		"/config/nsqhttp":                  &nsqhttp,
+		"/handlers/metabase/topic":         &nsqTopic,
+		"/handlers/metabase/apikey":        &apikey,
+		"/handlers/metabase/sequenceid":    &sequenceId,
+		"/handlers/metabase/sequencereset": &reset,
+	})
+	if err != nil {
 		return
 	}
-	dsn = configs[0].Value
-	if nsqURL, err = url.Parse(configs[1].Value); err != nil {
+	if nsqURL, err = url.Parse(nsqhttp); err != nil {
 		return
 	}
-	nsqTopic = configs[2].Value
-	apikey = configs[3].Value
-	sequenceId = configs[4].Value
-	if sequenceReset, err = time.ParseDuration(configs[5].Value); err != nil {
+	if sequenceReset, err = time.ParseDuration(reset); err != nil {
 		return
 	}
 	// Check to see if running attribute has expired. If it has, we can
