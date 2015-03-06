@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/golang/glog"
+	"strconv"
 	"time"
 )
 
@@ -47,12 +48,26 @@ func WebListen() string {
 	return findValue(Data.Config, "weblisten")
 }
 
+func (h HandlerConfig) Active() bool {
+	s := findValue(h.Config, "active")
+	value, err := strconv.ParseBool(s)
+	if err != nil {
+		glog.Errorf("Invalid value for %q: %s", h.Handler, err)
+		value = false
+	}
+	return value
+}
+
+func (h HandlerConfig) ActiveItem() *etcd.Item {
+	return findItem(h.Config, "active")
+}
+
 func (h HandlerConfig) Consume() string {
 	return findValue(h.Config, "consume")
 }
 
 func (h HandlerConfig) ConsumeItem() *etcd.Item {
-	return findItem(h.Config, "frequency")
+	return findItem(h.Config, "consume")
 }
 
 func (h HandlerConfig) Frequency() time.Duration {
