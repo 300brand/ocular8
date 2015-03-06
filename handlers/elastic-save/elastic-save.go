@@ -46,8 +46,13 @@ func main() {
 	conn := elastic.NewConn()
 	conn.SetHosts(strings.Split(hosts, ","))
 
-	ids := make([]bson.ObjectId, 0, flag.NArg())
-	for _, id := range flag.Args() {
+	args := flag.Args()
+	if len(args) == 1 && strings.Contains(args[0], " ") {
+		args = strings.Split(args[0], " ")
+	}
+
+	ids := make([]bson.ObjectId, 0, len(args))
+	for _, id := range args {
 		if !bson.IsObjectIdHex(id) {
 			glog.Errorf("Invalid BSON ObjectId: %s", id)
 			continue
@@ -55,34 +60,13 @@ func main() {
 		ids = append(ids, bson.ObjectIdHex(id))
 	}
 
-	pipeline := []bson.M{
-		bson.M{
-			"$match": bson.M{
-				"_id": bson.M{
-					"$in": ids,
-				},
-			},
-		},
-		bson.M{
-			"$project": bson.M{
-				"pubid":     1,
-				"feedid":    1,
-				"title":     1,
-				"author":    1,
-				"url":       1,
-				"published": 1,
-				"islexisnexis": bson.M{
-					"$cond": bson.M{
-						"if":   "$metabase",
-						"then": true,
-						"else": false,
-					},
-				},
-			},
+	query := bson.M{
+		"_id": bson.M{
+			"$in": ids,
 		},
 	}
 	elasticArticles := make([]types.ElasticArticle, 0, len(ids))
-	err = db.C("articles").Pipe(pipeline).All(&elasticArticles)
+	err = db.C("articles").Find(query).All(&elasticArticles)
 	if err != nil {
 		glog.Fatalf("articles.Find(%d): %s", len(ids), err)
 	}
