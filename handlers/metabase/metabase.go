@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 
 var (
 	apikey        string
+	backfill      = flag.String("backfill", "", "Backfill saved XML")
 	cacheHit      int
 	cacheMiss     int
 	canRun        int64
@@ -153,19 +153,20 @@ func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 	return
 }
 
-func saveCopy(r *metabase.Response, dir string) {
-	f, err := os.Create(filepath.Join(dir, time.Now().Format("20060102T150405.encoded.xml")))
+func fromAPI() (response *metabase.Response, err error) {
+	response, err = metabase.Fetch(apikey, sequenceId, *store)
+	return
+}
+
+func fromFile(filename string) (response *metabase.Response, err error) {
+	f, err := os.Open(filename)
 	if err != nil {
-		glog.Error(err)
 		return
 	}
 	defer f.Close()
-	enc := xml.NewEncoder(f)
-	enc.Indent("", "\t")
-	if err := enc.Encode(r); err != nil {
-		glog.Errorf("xml.Encode: %s", err)
-		return
-	}
+	response = new(metabase.Response)
+	err = xml.NewDecoder(f).Decode(response)
+	return
 }
 
 func main() {
@@ -192,13 +193,15 @@ func main() {
 	defer s.Close()
 	db = s.DB("")
 
-	result, err := metabase.Fetch(apikey, sequenceId, *store)
-	if err != nil {
-		glog.Fatalf("metabase.Fetch: %s", err)
-	}
-
-	if dir := *store; dir != "" {
-		saveCopy(result, dir)
+	var result *metabase.Response
+	if filename := *backfill; filename != "" {
+		if result, err = fromFile(filename); err != nil {
+			glog.Fatalf("fromFile(%s): %s", filename, err)
+		}
+	} else {
+		if result, err = fromAPI(); err != nil {
+			glog.Fatalf("fromAPI: %s", err)
+		}
 	}
 
 	if len(result.Articles) == 0 {
