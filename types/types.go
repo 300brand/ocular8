@@ -34,20 +34,34 @@ type Feed struct {
 }
 
 type Article struct {
-	Id        bson.ObjectId `bson:"_id"`
-	FeedId    bson.ObjectId
-	PubId     bson.ObjectId
-	Url       string
-	Title     string
-	Author    string
-	Published time.Time
-	BodyText  string
-	BodyHTML  string
-	HTML      []byte
-	LoadTime  time.Duration
-	Entry     *Entry    `bson:",omitempty"`
-	Goose     *Goose    `bson:",omitempty"`
-	Metabase  *Metabase `bson:",omitempty"`
+	Id           bson.ObjectId `bson:"_id"`
+	FeedId       bson.ObjectId
+	PubId        bson.ObjectId
+	Url          string
+	Title        string
+	Author       string
+	Published    time.Time
+	BodyText     string
+	BodyHTML     string
+	HTML         []byte
+	LoadTime     time.Duration
+	IsLexisNexis bool
+	Entry        *Entry    `bson:",omitempty"`
+	Goose        *Goose    `bson:",omitempty"`
+	Metabase     *Metabase `bson:",omitempty"`
+}
+
+type ElasticArticle struct {
+	ArticleId       bson.ObjectId `bson:"_id"`
+	PublicationId   bson.ObjectId `bson:"pubid"`
+	FeedId          bson.ObjectId `bson:"feedid"`
+	Title           string        `bson:"title"`
+	Author          string        `bson:"author"`
+	Body            string        `bson:"bodytext"`
+	URL             string        `bson:"url"`
+	PublicationName string        `bson:"-"`
+	Published       time.Time     `bson:"published"`
+	IsLexisNexis    bool          `bson:"islexisnexis"`
 }
 
 type Entry struct {
