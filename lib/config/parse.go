@@ -57,7 +57,7 @@ func setDefaults(c *etcd.Client) (err error) {
 	for h := range Data.Handlers {
 		prefix := "/handlers/" + Data.Handlers[h].Handler
 		for i := range Data.Handlers[h].Config {
-			if err = setItem(c, prefix, &Data.Handlers[h].Config[i], false); err != nil {
+			if err = setItem(c, prefix, &Data.Handlers[h].Config[i], true); err != nil {
 				return
 			}
 		}
