@@ -55,10 +55,7 @@ function pydeps {
 }
 
 function start {
-	${ROOT}/o8-server \
-		-logtostderr \
-		-assets=${ROOT}/assets \
-		-handlers=${ROOT}/handlers
+	${ROOT}/o8-server -logtostderr -etcd http://localhost:4001
 }
 
 
