@@ -127,14 +127,15 @@ func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 		author = strings.TrimPrefix(author, "By ")
 		author = strings.TrimPrefix(author, "By ") // Some have it twice..
 		a := &types.Article{
-			Id:        bson.NewObjectId(),
-			Url:       ra.Url,
-			Title:     ra.Title,
-			Author:    author,
-			Published: ra.Published(),
-			BodyText:  ra.Content,
-			BodyHTML:  ra.ContentWithMarkup,
-			HTML:      ra.XML(),
+			Id:           bson.NewObjectId(),
+			Url:          ra.Url,
+			Title:        ra.Title,
+			Author:       author,
+			Published:    ra.Published(),
+			BodyText:     ra.Content,
+			BodyHTML:     ra.ContentWithMarkup,
+			HTML:         ra.XML(),
+			IsLexisNexis: true,
 			Metabase: &types.Metabase{
 				Author:        author,
 				AuthorHomeUrl: ra.Author.HomeUrl,
@@ -176,16 +177,6 @@ func main() {
 		glog.Fatalf("setConfigs(): %s", err)
 	}
 
-	if apikey == "" {
-		glog.Errorf("API Key undefined. Please provide key in /handlers/metabase/apikey")
-		os.Exit(2)
-	}
-
-	if canRun > 0 {
-		glog.Warningf("Already running, will be able to run in %s", time.Duration(canRun)*time.Second)
-		return
-	}
-
 	s, err := mgo.Dial(dsn)
 	if err != nil {
 		glog.Fatalf("mgo.Dial(%s): %s", dsn, err)
@@ -199,6 +190,15 @@ func main() {
 			glog.Fatalf("fromFile(%s): %s", filename, err)
 		}
 	} else {
+		if apikey == "" {
+			glog.Errorf("API Key undefined. Please provide key in /handlers/metabase/apikey")
+			os.Exit(2)
+		}
+
+		if canRun > 0 {
+			glog.Warningf("Already running, will be able to run in %s", time.Duration(canRun)*time.Second)
+			return
+		}
 		if result, err = fromAPI(); err != nil {
 			glog.Fatalf("fromAPI: %s", err)
 		}
@@ -209,7 +209,7 @@ func main() {
 		return
 	}
 
-	if id := result.NewSequenceId(); id != "" {
+	if id := result.NewSequenceId(); *backfill == "" && id != "" {
 		glog.Infof("New SequenceId: %s", id)
 		ttl := uint64(sequenceReset.Seconds())
 		if _, err := etcd.New(*etcdUrl).Set("/handlers/metabase/sequenceid", id, ttl); err != nil {
@@ -223,11 +223,13 @@ func main() {
 	}
 	glog.Infof("saveArticles cache hit %d miss %d", cacheHit, cacheMiss)
 
+	// This payload is different from others to fascilitate bulk elastic inserts
 	payload := make([]byte, 0, len(ids)*25)
 	for _, id := range ids {
 		payload = append(payload, []byte(id.Hex())...)
-		payload = append(payload, '\n')
+		payload = append(payload, ' ')
 	}
+	payload[len(payload)-1] = '\n'
 	body := bytes.NewReader(payload)
 	bodyType := "multipart/form-data"
 
