@@ -50,11 +50,13 @@ func (c *Client) GetDefault(key, defaultValue, description string) (value string
 	return
 }
 
-func (c *Client) GetAll(items []*Item) (err error) {
-	for _, item := range items {
-		if item.Value, err = c.GetDefault(item.Key, item.Default, item.Desc); err != nil {
-			return
+func (c *Client) GetAll(kv map[string]*string) (err error) {
+	for key, value := range kv {
+		resp, err := c.Get(key, false, false)
+		if err != nil {
+			return err
 		}
+		*value = resp.Node.Value
 	}
 	return
 }

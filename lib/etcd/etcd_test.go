@@ -36,34 +36,21 @@ func TestGetAll(t *testing.T) {
 	c.Delete("/test", true)
 	defer c.Delete("/test", true)
 
-	configs := []*Item{
-		&Item{
-			Key:     "/test/mongo/dsn",
-			Default: "mongodb://localhost:27017/ocular8",
-			Desc:    "Connection string to MongoDB",
-		},
-		&Item{
-			Key:     "/test/nsq/http",
-			Default: "http://localhost:4151",
-			Desc:    "NSQd HTTP address",
-		},
-		&Item{
-			Key:     "/test/enqueue-feeds/limit",
-			Default: "10",
-			Desc:    "Max number of feeds to enqueue per batch",
-		},
-		&Item{
-			Key:     "/test/enqueue-feeds/threshold",
-			Default: "100",
-			Desc:    "Entry threshold to avoid pushing more feeds into download queue. Applies to both feed and entry downloads.",
-		},
+	c.Set("/test/k1", "v1", 0)
+	c.Set("/test/k2", "v2", 0)
+
+	var v1, v2 string
+	kv := map[string]*string{
+		"/test/k1": &v1,
+		"/test/k2": &v2,
 	}
-	if err := c.GetAll(configs); err != nil {
+	if err := c.GetAll(kv); err != nil {
 		t.Fatalf("GetAll: %s", err)
 	}
-	for _, item := range configs {
-		if item.Value != item.Default {
-			t.Errorf("Exp: %q Got: %q", item.Default, item.Value)
-		}
+	if v1 != "v1" {
+		t.Errorf("v1 = %q", v1)
+	}
+	if v2 != "v2" {
+		t.Errorf("v2 = %q", v1)
 	}
 }
