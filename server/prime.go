@@ -45,6 +45,7 @@ func prime(mongoDSN string) (err error) {
 	cf.EnsureIndexKey("ignore")
 	ca.EnsureIndexKey("feedid")
 	ca.EnsureIndexKey("pubid")
+	ca.EnsureIndexKey("islexisnexis")
 	ca.EnsureIndex(mgo.Index{
 		Key:        []string{"url"},
 		Background: true,
