@@ -115,40 +115,23 @@ func invalidContentType(ct string) (invalid bool) {
 }
 
 func setConfigs() (err error) {
+	var nsqhttp, sizelimit string
 	client := etcd.New(*etcdUrl)
-	configs := []*etcd.Item{
-		&etcd.Item{
-			Key:     "/config/mongo/dsn",
-			Default: "mongodb://localhost:27017/ocular8",
-			Desc:    "Connection string to MongoDB",
-		},
-		&etcd.Item{
-			Key:     "/config/nsq/http",
-			Default: "http://localhost:4151",
-			Desc:    "NSQd HTTP address",
-		},
-		&etcd.Item{
-			Key:     "/handlers/download-entry/sizelimit",
-			Default: "2097152",
-			Desc:    "Size limit for downloaded entries",
-		},
-		&etcd.Item{
-			Key:     "/handlers/download-entry/topic",
-			Default: "article.id.extract.goose",
-			Desc:    "Topic to post article IDs to",
-		},
-	}
-	if err = client.GetAll(configs); err != nil {
+	err = client.GetAll(map[string]*string{
+		"/config/mongo":                      &dsn,
+		"/config/nsqhttp":                    &nsqhttp,
+		"/handlers/download-entry/sizelimit": &sizelimit,
+		"/handlers/download-entry/topic":     &TOPIC,
+	})
+	if err != nil {
 		return
 	}
-	dsn = configs[0].Value
-	if nsqURL, err = url.Parse(configs[1].Value); err != nil {
+	if nsqURL, err = url.Parse(nsqhttp); err != nil {
 		return
 	}
-	if SIZELIMIT, err = strconv.Atoi(configs[2].Value); err != nil {
+	if SIZELIMIT, err = strconv.Atoi(sizelimit); err != nil {
 		return
 	}
-	TOPIC = configs[3].Value
 	return
 }
 
