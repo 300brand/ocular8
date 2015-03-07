@@ -1,9 +1,11 @@
 package main
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/300brand/ocular8/lib/config"
+	"github.com/300brand/ocular8/lib/handler"
 	"github.com/golang/glog"
 )
 
@@ -48,6 +50,13 @@ func Consumer(cfg *config.HandlerConfig, stopChan chan bool) {
 
 func Producer(p *config.HandlerConfig, stopChan chan bool) {
 	glog.Infof("[%s] Starting producer", p.Handler)
+
+	abs, err := filepath.Abs(config.HandlersDir())
+	if err != nil {
+		glog.Fatalf("Could not determine absolute path for handlers: %s", err)
+	}
+	h := handler.New(filepath.Join(abs, p.Handler), p.Command)
+
 	active := p.ActiveItem()
 	active.Changed = make(chan bool)
 	freq := p.FrequencyItem()
@@ -82,7 +91,10 @@ Loop:
 		case <-active.Changed:
 			glog.Infof("[%s] Active state changed to %v", p.Handler, p.Active())
 		case <-time.After(p.Frequency()):
-			glog.Infof("[%s] Running command", p.Handler)
+			glog.Infof("[%s] Running", p.Handler)
+			if err := h.Run(config.Etcd(), ""); err != nil {
+				glog.Errorf("[%s] %s - %s", p.Handler, h.ParsedCmd(config.Etcd(), ""), err)
+			}
 		case <-freq.Changed:
 			glog.Infof("[%s] Frequency changed to %s", p.Handler, p.Frequency())
 		case <-stopChan:
