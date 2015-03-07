@@ -56,7 +56,7 @@ func (h HandlerConfig) Active() bool {
 	s := findValue(h.Config, "active")
 	value, err := strconv.ParseBool(s)
 	if err != nil {
-		glog.Errorf("Invalid value for %q: %s", h.Handler, err)
+		glog.Errorf("Invalid value for /handler/%s/active: %s", h.Handler, err)
 		value = false
 	}
 	return value
@@ -64,6 +64,20 @@ func (h HandlerConfig) Active() bool {
 
 func (h HandlerConfig) ActiveItem() *etcd.Item {
 	return findItem(h.Config, "active")
+}
+
+func (h HandlerConfig) Concurrent() int {
+	s := findValue(h.Config, "concurrent")
+	value, err := strconv.Atoi(s)
+	if err != nil {
+		glog.Errorf("Invalid value for /handler/%s/concurrent: %s", h.Handler, err)
+		value = 0
+	}
+	return value
+}
+
+func (h HandlerConfig) ConcurrentItem() *etcd.Item {
+	return findItem(h.Config, "concurrent")
 }
 
 func (h HandlerConfig) Consume() string {
