@@ -217,11 +217,6 @@
 					"key":     "frequency",
 					"default": "5m",
 					"desc":    "How often to run, parsed by time.ParseDuration"
-				},
-				{
-					"key":     "lastarticle",
-					"default": "",
-					"desc":    "Last article ID counted"
 				}
 			]
 		}
