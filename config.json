@@ -62,11 +62,6 @@
 			"command": [ "./download-entry", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
-					"key":     "active",
-					"default": "true",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
-				{
 					"key":     "consume",
 					"default": "entry.id.download",
 					"desc":    "Topic to watch for new items"
@@ -82,11 +77,6 @@
 			"handler": "download-feed",
 			"command": [ "./download-feed", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
-				{
-					"key":     "active",
-					"default": "true",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
 				{
 					"key":     "consume",
 					"default": "feed.id.download",
@@ -104,11 +94,6 @@
 			"command": [ "./elastic-save", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
-					"key":     "active",
-					"default": "true",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
-				{
 					"key":     "consume",
 					"default": "article.id.elastic",
 					"desc":    "Topic to watch for new items"
@@ -125,11 +110,6 @@
 			"command": [ "./enqueue-feeds", "-etcd", "{{ .Config.Etcd }}" ],
 			"config":  [
 				{
-					"key":     "active",
-					"default": "false",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
-				{
 					"key":     "frequency",
 					"default": "30s",
 					"desc":    "How often to run, parsed by time.ParseDuration"
@@ -140,11 +120,6 @@
 			"handler": "extract-goose",
 			"command": [ "./extract-goose", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
-				{
-					"key":     "active",
-					"default": "true",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
 				{
 					"key":     "consume",
 					"default": "article.id.extract.goose",
@@ -162,11 +137,6 @@
 			"command": [ "./extract-xpath", "-etcd", "{{ .Etcd }}", "{{ .Data }}" ],
 			"config":  [
 				{
-					"key":     "active",
-					"default": "true",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
-				{
 					"key":     "consume",
 					"default": "article.id.extract.xpath",
 					"desc":    "Topic to watch for new items"
@@ -182,11 +152,6 @@
 			"handler": "metabase",
 			"command": [ "./metabase", "-etcd", "{{ .Etcd }}" ],
 			"config":  [
-				{
-					"key":     "active",
-					"default": "false",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
 				{
 					"key":     "frequency",
 					"default": "30s",
@@ -213,11 +178,6 @@
 			"handler": "recount-articles",
 			"command": [ "./recount-articles", "-etcd", "{{ .Etcd }}" ],
 			"config":  [
-				{
-					"key":     "active",
-					"default": "false",
-					"desc":    "Whether handler is active - valid values are 'true' or 'false'"
-				},
 				{
 					"key":     "frequency",
 					"default": "5m",
