@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"path/filepath"
 	"time"
 
 	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/lib/handler"
+	"github.com/bitly/go-nsq"
 	"github.com/golang/glog"
 )
 
@@ -41,10 +43,74 @@ func Handlers(handlers []config.HandlerConfig, stopChan chan bool) (err error) {
 	return
 }
 
-func Consumer(cfg *config.HandlerConfig, stopChan chan bool) {
-	glog.Infof("[%s] Starting consumer", cfg.Handler)
-	<-stopChan
-	glog.Infof("[%s] Stopping consumer", cfg.Handler)
+func Consumer(c *config.HandlerConfig, stopChan chan bool) {
+	glog.Infof("[%s] Starting consumer", c.Handler)
+
+	abs, err := filepath.Abs(config.HandlersDir())
+	if err != nil {
+		glog.Fatalf("Could not determine absolute path for handlers: %s", err)
+	}
+	h := handler.New(filepath.Join(abs, c.Handler), c.Command)
+
+	active := c.ActiveItem()
+	active.Changed = make(chan bool)
+	concurrent := c.ConcurrentItem()
+	concurrent.Changed = make(chan bool)
+	consume := c.ConsumeItem()
+	consume.Changed = make(chan bool)
+
+	nsqConfig := nsq.NewConfig()
+	nsqConfig.ClientID = c.Handler
+	var consumer *nsq.Consumer
+	setupConsumer := func() {
+		var err error
+		glog.Infof("[%s] Setting up consumer; Concurrent:%d; Topic: %s", c.Handler, c.Concurrent(), c.Consume())
+		nsqConfig.MaxInFlight = c.Concurrent()
+		consumer, err = nsq.NewConsumer(c.Consume(), c.Handler, nsqConfig)
+		if err != nil {
+			glog.Fatalf("nsq.NewConsumer(%q, %q, nsqConfig): %s", c.Consume(), c.Handler, err)
+		}
+		consumer.AddConcurrentHandlers(consumerHandler(h), c.Concurrent())
+		if err = consumer.ConnectToNSQLookupd(config.Nsqlookuptcp()); err != nil {
+			glog.Fatalf("consumer.ConnectToNSQLookupd(%q): %s", config.Nsqlookuptcp(), err)
+		}
+	}
+	setupConsumer()
+
+Loop:
+	for {
+		if !c.Active() {
+			consumer.ChangeMaxInFlight(0)
+			glog.Infof("[%s] Waiting to become active again", c.Handler)
+			select {
+			case <-active.Changed:
+				consumer.ChangeMaxInFlight(c.Concurrent())
+				continue
+			case <-stopChan:
+				glog.Infof("[%s] Got stop signal", c.Handler)
+				break Loop
+			}
+		}
+
+		select {
+		case <-active.Changed:
+			glog.Infof("[%s] Active state changed to %v", c.Handler, c.Active())
+		case <-concurrent.Changed:
+			glog.Infof("[%s] Concurrency changed to %v", c.Handler, c.Concurrent())
+			consumer.Stop()
+			setupConsumer()
+		case <-consume.Changed:
+			glog.Infof("[%s] Consume topic changed to %v", c.Handler, c.Consume())
+			consumer.Stop()
+			setupConsumer()
+		case <-stopChan:
+			glog.Infof("[%s] Got stop signal", c.Handler)
+			break Loop
+		}
+	}
+
+	glog.Infof("[%s] Stopping consumer", c.Handler)
+	consumer.Stop()
 	stopChan <- true
 }
 
@@ -70,7 +136,7 @@ Loop:
 			case <-active.Changed:
 				continue
 			case <-stopChan:
-				glog.Infof("[%s] Got stop", p.Handler)
+				glog.Infof("[%s] Got stop signal", p.Handler)
 				break Loop
 			}
 		}
@@ -81,7 +147,7 @@ Loop:
 			case <-freq.Changed:
 				continue
 			case <-stopChan:
-				glog.Infof("[%s] Got stop", p.Handler)
+				glog.Infof("[%s] Got stop signal", p.Handler)
 				break Loop
 			}
 			continue
@@ -98,7 +164,7 @@ Loop:
 		case <-freq.Changed:
 			glog.Infof("[%s] Frequency changed to %s", p.Handler, p.Frequency())
 		case <-stopChan:
-			glog.Infof("[%s] Got stop", p.Handler)
+			glog.Infof("[%s] Got stop signal", p.Handler)
 			break Loop
 		}
 	}
@@ -106,85 +172,10 @@ Loop:
 	stopChan <- true
 }
 
-// func consumerHandler(h handler.Handler) (f nsq.HandlerFunc) {
-// 	return func(msg *nsq.Message) (err error) {
-// 		glog.Infof("%s: %s %d", h.Command[0], time.Unix(0, msg.Timestamp), msg.Attempts)
-// 		buf := bytes.NewBuffer(msg.Body)
-// 		return h.Run(config.Etcd(), buf.String())
-// 	}
-// }
-
-// func poll(stopChan chan bool, h handler.Handler) {
-// 	duration := time.Hour / time.Duration(h.Frequency)
-// 	glog.Infof("Polling %s every %s", h.Name, duration)
-// 	for {
-// 		glog.Infof("Polling %s", h.Name)
-// 		if err := h.Run(time.Now().Format(time.RFC3339Nano)); err != nil {
-// 			glog.Errorf("Poll run %s: %s", h.Name, err)
-// 		}
-// 		select {
-// 		case <-time.After(duration):
-// 		case <-stopChan:
-// 			glog.Infof("Stop polling: %s", h.Name)
-// 			return
-// 		}
-// 	}
-// }
-
-// func startConsumers(stopChan chan bool, configs []handler.Handler) {
-// 	glog.Infof("Consumers: Starting")
-
-// 	consumers := make([]*nsq.Consumer, 0, len(configs))
-// 	for _, h := range configs {
-// 		if h.NSQ.Consume.Topic == "" {
-// 			continue
-// 		}
-// 		nsqConfig := nsq.NewConfig()
-// 		nsqConfig.Set("client_id", h.Name)
-// 		topic, channel := h.NSQ.Consume.Topic, h.NSQ.Consume.Channel
-// 		glog.Infof("Setting up consumer for %s -> %s", topic, channel)
-// 		consumer, err := nsq.NewConsumer(topic, channel, nsqConfig)
-// 		if err != nil {
-// 			glog.Fatalf("nsq.NewConsumer(%s, %s, config): %s", topic, channel, err)
-// 		}
-// 		concurrency := 1
-// 		if c := h.NSQ.Consume.Concurrent; c > concurrency {
-// 			concurrency = c
-// 		}
-// 		consumer.ChangeMaxInFlight(concurrency)
-// 		consumer.AddConcurrentHandlers(consumerHandler(h), concurrency)
-// 		if err := consumer.ConnectToNSQD(config.Config.NsqdTCP); err != nil {
-// 			glog.Fatalf("nsq.ConnectToNSQD(%s): %s", config.Config.NsqdTCP, err)
-// 		}
-// 		consumers = append(consumers, consumer)
-// 	}
-
-// 	<-stopChan
-// 	glog.Infof("Consumers: Exiting")
-// 	for _, c := range consumers {
-// 		c.Stop()
-// 		<-c.StopChan
-// 	}
-// 	stopChan <- true
-// }
-
-// func startPolling(stopChan chan bool, configs []handler.Handler) {
-// 	glog.Infof("Polling: Starting")
-
-// 	chans := make([]chan bool, 0, len(configs))
-// 	for _, h := range configs {
-// 		if h.Frequency <= 0 {
-// 			continue
-// 		}
-// 		ch := make(chan bool)
-// 		go poll(ch, h)
-// 		chans = append(chans, ch)
-// 	}
-
-// 	<-stopChan
-// 	glog.Infof("Polling: Exiting")
-// 	for _, ch := range chans {
-// 		ch <- true
-// 	}
-// 	stopChan <- true
-// }
+func consumerHandler(h *handler.Handler) (f nsq.HandlerFunc) {
+	return func(msg *nsq.Message) (err error) {
+		glog.Infof("%s: %s %d", h.Command[0], time.Unix(0, msg.Timestamp), msg.Attempts)
+		buf := bytes.NewBuffer(msg.Body)
+		return h.Run(config.Etcd(), buf.String())
+	}
+}
