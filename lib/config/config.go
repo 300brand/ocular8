@@ -48,6 +48,10 @@ func Nsqlookuptcp() string {
 	return findValue(Data.Config, "nsqlookuptcp")
 }
 
+func Nsqlookuphttp() string {
+	return findValue(Data.Config, "nsqlookuphttp")
+}
+
 func WebListen() string {
 	return findValue(Data.Config, "weblisten")
 }

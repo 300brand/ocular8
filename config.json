@@ -26,6 +26,11 @@
 			"desc":    "NSQd TCP address"
 		},
 		{
+			"key":     "nsqlookuphttp",
+			"default": "localhost:4161",
+			"desc":    "NSQLookupd HTTP address"
+		},
+		{
 			"key":     "nsqlookuptcp",
 			"default": "localhost:4160",
 			"desc":    "NSQLookupd TCP address"

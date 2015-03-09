@@ -71,7 +71,7 @@ func Consumer(c *config.HandlerConfig, stopChan chan bool) {
 			glog.Fatalf("nsq.NewConsumer(%q, %q, nsqConfig): %s", c.Consume(), c.Handler, err)
 		}
 		consumer.AddConcurrentHandlers(consumerHandler(h), c.Concurrent())
-		if err = consumer.ConnectToNSQLookupd(config.Nsqlookuptcp()); err != nil {
+		if err = consumer.ConnectToNSQLookupd(config.Nsqlookuphttp()); err != nil {
 			glog.Fatalf("consumer.ConnectToNSQLookupd(%q): %s", config.Nsqlookuptcp(), err)
 		}
 	}
