@@ -2,6 +2,7 @@
 import argparse
 import bson
 import datetime
+import etcd
 import feedparser
 import logging
 import pymongo
@@ -84,17 +85,21 @@ def process(db, feed, nsq):
 
 def main():
 	parser = argparse.ArgumentParser(description='Download feed and push new URLs into next queue')
-	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
-	parser.add_argument('-nsqdhttp', help='NSQd HTTP address', default='http://localhost:4151')
+	parser.add_argument('-etcd', help='Etcd URL', default='http://localhost:4001')
 	parser.add_argument('id', help='Feed ObjectId', nargs='+')
 	args = parser.parse_args()
 
-	db = pymongo.MongoClient(args.mongo).get_default_database()
+	url = urllib.parse.urlsplit(args.etcd)
+	client = etcd.Client(host=url.hostname, port=url.port)
+	config_mongo = client.get('/config/mongo').value
+	config_nsqhttp = client.get('/config/nsqhttp').value
+
+	db = pymongo.MongoClient(config_mongo).get_default_database()
 
 	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
 	feeds = db.feeds.find({ '_id': { '$in': bson_ids } })
 	for feed in feeds:
-		process(db, feed, args.nsqdhttp)
+		process(db, feed, config_nsqhttp)
 
 if __name__ == '__main__':
 	main()
