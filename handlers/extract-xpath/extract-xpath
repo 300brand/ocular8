@@ -2,9 +2,11 @@
 import argparse
 import bson
 import dateutil.parser
+import etcd
 import logging
 import lxml.etree
 import pymongo
+import urllib.parse
 import urllib.request
 
 logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
@@ -93,12 +95,16 @@ def extract(article, xpaths):
 
 def main():
 	parser = argparse.ArgumentParser(description='Extract meta info and content from articles using XPath')
-	parser.add_argument('-mongo', help='MongoDB connection string', default='mongodb://localhost:27017/ocular8')
-	parser.add_argument('-nsqdhttp', help='NSQd HTTP address', default='http://localhost:4151')
-	parser.add_argument('id', help='article IDs', nargs='+')
+	parser.add_argument('-etcd', help='Etcd URL', default='http://localhost:4001')
+	parser.add_argument('id', help='Article ObjectId', nargs='+')
 	args = parser.parse_args()
 
-	db = pymongo.MongoClient(args.mongo).get_default_database()
+	url = urllib.parse.urlsplit(args.etcd)
+	client = etcd.Client(host=url.hostname, port=url.port)
+	config_mongo = client.get('/config/mongo').value
+	config_nsqhttp = client.get('/config/nsqhttp').value
+
+	db = pymongo.MongoClient(config_mongo).get_default_database()
 	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
 	for id in bson_ids:
 		article = db.articles.find_one(id)
@@ -127,7 +133,7 @@ def main():
 
 		payload = str(article['_id']).encode('utf-8')
 		topic = 'article.id.elastic'
-		nsqurl = '%s/pub?topic=%s' % (args.nsqdhttp, topic)
+		nsqurl = '%s/pub?topic=%s' % (config_nsqhttp, topic)
 		try:
 			urllib.request.urlopen(nsqurl, data=payload)
 		except Exception as err:
