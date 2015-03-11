@@ -55,14 +55,14 @@ func setDefaults(c *etcd.Client) (err error) {
 		}
 	}
 	for h := range Data.Handlers {
-		prefix := "/handlers/" + Data.Handlers[h].Handler
-		configs := Data.Handlers[h].Config
 		// Ensure sure the active key; initialize as deactivated
-		configs = append(configs, etcd.Item{
+		Data.Handlers[h].Config = append(Data.Handlers[h].Config, etcd.Item{
 			Key:     "active",
 			Default: "false",
 			Desc:    "Whether handler is active - valid values are 'true' or 'false'",
 		})
+		prefix := "/handlers/" + Data.Handlers[h].Handler
+		configs := Data.Handlers[h].Config
 		for i := range configs {
 			if err = setItem(c, prefix, &configs[i], true); err != nil {
 				return

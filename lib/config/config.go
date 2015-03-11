@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/300brand/ocular8/lib/etcd"
-	"github.com/golang/glog"
 	"strconv"
 	"time"
+
+	"github.com/300brand/ocular8/lib/etcd"
+	"github.com/golang/glog"
 )
 
 type Config struct {
