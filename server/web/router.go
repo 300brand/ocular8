@@ -18,6 +18,8 @@ func Handler(assetsDir string) http.Handler {
 	var (
 		article  = APIHandler{"GET": GetArticle, "PUT": PutArticle, "DELETE": DelArticle}
 		articles = APIHandler{"GET": GetArticles, "POST": PostArticle}
+		config   = APIHandler{"GET": GetConfig, "PUT": PutConfig, "DELETE": DelConfig}
+		configs  = APIHandler{"GET": GetConfigs, "POST": PostConfig}
 		feed     = APIHandler{"GET": GetFeed, "PUT": PutFeed, "DELETE": DelFeed}
 		feeds    = APIHandler{"GET": GetFeeds, "POST": PostFeed}
 		pub      = APIHandler{"GET": GetPub, "PUT": PutPub, "DELETE": DelPub}
@@ -25,6 +27,9 @@ func Handler(assetsDir string) http.Handler {
 	)
 
 	api := router.PathPrefix("/api/v1").Subrouter()
+	// Config
+	api.Handle("/config", configs)
+	api.Handle("/config/{key}", config)
 	// Pubs
 	api.Handle("/pubs", pubs)
 	api.Handle("/pubs/{pubid:[a-f0-9]{24}}", pub)

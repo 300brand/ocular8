@@ -10,6 +10,27 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+func GetConfigs(ctx *Context) (out interface{}, err error) {
+
+	return
+}
+
+func PostConfig(ctx *Context) (out interface{}, err error) {
+	return
+}
+
+func GetConfig(ctx *Context) (out interface{}, err error) {
+	return
+}
+
+func PutConfig(ctx *Context) (out interface{}, err error) {
+	return
+}
+
+func DelConfig(ctx *Context) (out interface{}, err error) {
+	return
+}
+
 func GetPubs(ctx *Context) (out interface{}, err error) {
 	query := bson.M{"deleted": bson.M{"$exists": false}}
 	if v := ctx.Values.Get("query"); v != "" {
