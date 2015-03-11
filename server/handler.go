@@ -75,16 +75,13 @@ func Consumer(c *config.HandlerConfig, stopChan chan bool) {
 			glog.Fatalf("consumer.ConnectToNSQLookupd(%q): %s", config.Nsqlookuptcp(), err)
 		}
 	}
-	setupConsumer()
 
 Loop:
 	for {
 		if !c.Active() {
-			consumer.ChangeMaxInFlight(0)
 			glog.Infof("[%s] Waiting to become active again", c.Handler)
 			select {
 			case <-active.Changed:
-				consumer.ChangeMaxInFlight(c.Concurrent())
 				continue
 			case <-stopChan:
 				glog.Infof("[%s] Got stop signal", c.Handler)
@@ -92,25 +89,27 @@ Loop:
 			}
 		}
 
+		if consumer != nil {
+			consumer.Stop()
+		}
+		setupConsumer()
 		select {
 		case <-active.Changed:
 			glog.Infof("[%s] Active state changed to %v", c.Handler, c.Active())
 		case <-concurrent.Changed:
 			glog.Infof("[%s] Concurrency changed to %v", c.Handler, c.Concurrent())
-			consumer.Stop()
-			setupConsumer()
 		case <-consume.Changed:
 			glog.Infof("[%s] Consume topic changed to %v", c.Handler, c.Consume())
-			consumer.Stop()
-			setupConsumer()
 		case <-stopChan:
 			glog.Infof("[%s] Got stop signal", c.Handler)
 			break Loop
 		}
 	}
 
-	glog.Infof("[%s] Stopping consumer", c.Handler)
-	consumer.Stop()
+	if consumer != nil {
+		glog.Infof("[%s] Stopping consumer", c.Handler)
+		consumer.Stop()
+	}
 	stopChan <- true
 }
 
