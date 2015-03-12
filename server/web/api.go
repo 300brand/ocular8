@@ -6,28 +6,34 @@ import (
 	"time"
 
 	"github.com/300brand/ocular8/types"
+	"github.com/300brand/ocular8/lib/config"
+	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/golang/glog"
 	"gopkg.in/mgo.v2/bson"
 )
 
 func GetConfigs(ctx *Context) (out interface{}, err error) {
-
-	return
+	e := etcd.New(config.Etcd())
+	return e.Client.Get("/", true, true)
 }
 
 func PostConfig(ctx *Context) (out interface{}, err error) {
+	glog.Error("Can not post new configs")
 	return
 }
 
 func GetConfig(ctx *Context) (out interface{}, err error) {
-	return
+	e := etcd.New(config.Etcd())
+	return e.Client.Get(ctx.Vars["key"], false, false)
 }
 
 func PutConfig(ctx *Context) (out interface{}, err error) {
-	return
+	e := etcd.New(config.Etcd())
+	return e.Client.Set(ctx.Vars["key"], ctx.Values.Get("value"), 0)
 }
 
 func DelConfig(ctx *Context) (out interface{}, err error) {
+	glog.Error("Can not delete configs")
 	return
 }
 
