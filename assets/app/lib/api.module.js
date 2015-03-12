@@ -4,6 +4,12 @@ angular.module("api", [
 	"ngResource"
 ])
 
+.factory("Config", ["$resource", function($resource) {
+	return $resource("/api/v1/configs/:key", { key: "@Id" }, {
+		"update": { method: "PUT" }
+	})
+}])
+
 .factory("Pubs", ["$resource", function($resource) {
 	return $resource("/api/v1/pubs/:pubid", { pubid: "@Id" }, {
 		"update": { method: "PUT" }
