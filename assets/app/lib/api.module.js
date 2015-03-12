@@ -4,7 +4,7 @@ angular.module("api", [
 	"ngResource"
 ])
 
-.factory("Config", ["$resource", function($resource) {
+.factory("Configs", ["$resource", function($resource) {
 	return $resource("/api/v1/configs/:key", { key: "@Id" }, {
 		"update": { method: "PUT" }
 	})
