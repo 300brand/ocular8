@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -9,6 +10,31 @@ import (
 	"github.com/300brand/ocular8/server/web"
 	"github.com/golang/glog"
 )
+
+var (
+	noweb     = flag.Bool("noweb", false, "Don't start web server")
+	nohandler = flag.Bool("nohandler", false, "Don't start handlers")
+)
+
+func startHandlers(handlerCfg []config.HandlerConfig, stop chan bool) {
+	if err := Handlers(handlerCfg, stop); err != nil {
+		glog.Fatalf("Handlers(): %s", err)
+	}
+	glog.Info("Waiting for handler cleanup")
+}
+
+func startWeb(addr, dir, mongo string, stop chan bool) {
+	if err := web.Mongo(mongo); err != nil {
+		glog.Fatalf("web.Mongo(%s): %s", mongo, err)
+	}
+	if err := http.ListenAndServe(addr, web.Handler(dir)); err != nil {
+		glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
+	}
+	<-stop
+	glog.Info("Waiting for web cleanup")
+	web.Close()
+	stop <- true
+}
 
 func main() {
 	if err := config.Parse(); err != nil {
@@ -23,23 +49,22 @@ func main() {
 	}
 
 	// Listen for signals
+	stopMux := make([]chan bool, 0, 2)
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, os.Kill)
 
 	// Start web frontend
-	go func(addr, dir, mongo string) {
-		if err := web.Mongo(mongo); err != nil {
-			glog.Fatalf("web.Mongo(%s): %s", mongo, err)
-		}
-		if err := http.ListenAndServe(addr, web.Handler(dir)); err != nil {
-			glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
-		}
-	}(config.WebListen(), config.AssetsDir(), config.Mongo())
+	if !*noweb {
+		ch := make(chan bool)
+		stopMux = append(stopMux, ch)
+		go startWeb(config.WebListen(), config.AssetsDir(), config.Mongo(), ch)
+	}
 
 	// Start handlers
-	stopChan := make(chan bool)
-	if err := Handlers(config.Data.Handlers, stopChan); err != nil {
-		glog.Fatalf("Handlers(): %s", err)
+	if !*nohandler {
+		ch := make(chan bool)
+		stopMux = append(stopMux, ch)
+		go startHandlers(config.Data.Handlers, ch)
 	}
 
 	// Idle
@@ -48,9 +73,11 @@ func main() {
 	// Catch kill, clean up, exit
 	s := <-signalChan
 	glog.Info("Caught signal:", s)
-	stopChan <- true
-	glog.Info("Cleaning up")
-	web.Close()
-	<-stopChan
+
+	for _, ch := range stopMux {
+		ch <- true
+		<-ch
+	}
+
 	glog.Info("Exiting")
 }
