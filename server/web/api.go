@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/300brand/ocular8/types"
 	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/lib/etcd"
+	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
 	"gopkg.in/mgo.v2/bson"
 )
