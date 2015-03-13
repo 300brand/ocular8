@@ -34,8 +34,8 @@
 							{{ Feed.Url }}
 						</p>
 					</div>
-					<div class="col-sm-2">{{ Feed.LastDownload | date || "Never" }}</div>
-					<div class="col-sm-2">{{ Feed.NextDownload | date || "Soon" }}</div>
+					<div class="col-sm-2">{{ (Feed.LastDownload | date) || "Never" }}</div>
+					<div class="col-sm-2">{{ (Feed.NextDownload | date) || "Soon" }}</div>
 					<div class="col-sm-2">
 						<button type="button" class="btn btn-sm btn-danger btn-block" ng-click="Feed.deleted = true" title="Remove" ng-if="!Feed.deleted"><span class="glyphicon glyphicon-trash"></span> Remove</button>
 						<button type="button" class="btn btn-sm btn-primary btn-block" ng-click="Feed.deleted = false" title="Remove" ng-if="Feed.deleted"><span class="glyphicon glyphicon-repeat"></span> Undo</button>
