@@ -27,9 +27,11 @@ func startWeb(addr, dir, mongo string, stop chan bool) {
 	if err := web.Mongo(mongo); err != nil {
 		glog.Fatalf("web.Mongo(%s): %s", mongo, err)
 	}
-	if err := http.ListenAndServe(addr, web.Handler(dir)); err != nil {
-		glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
-	}
+	go func() {
+		if err := http.ListenAndServe(addr, web.Handler(dir)); err != nil {
+			glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
+		}
+	}()
 	<-stop
 	glog.Info("Waiting for web cleanup")
 	web.Close()
