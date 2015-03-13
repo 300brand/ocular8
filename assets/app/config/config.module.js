@@ -12,33 +12,11 @@ angular.module("adminConfig", [
 	})
 }])
 
-angular.module("adminConfig").service("adminConfigService", ["$http", function($http) {
-	var etcdHost = "http://localhost:4001"
-	this.fullDirectory = function() {
-		return $http({
-			method: "GET",
-			url:    etcdHost + "/v2/keys/",
-			params: {
-				recursive: true
-			}
-		})
-	}
-	this.updateKey = function(key, value) {
-		return $http({
-			method: "PUT",
-			url:    etcdHost + "/v2/keys" + key,
-			params: {
-				value: value
-			}
-		})
-	}
-}])
-
 .controller("AdminConfigController", [
 	"$rootScope",
 	"$scope",
 	"Configs",
-	function($rootScope, $scope, adminConfigService) {
+	function($rootScope, $scope, Configs) {
 		$scope.configs = Configs.query()
 
 		// $scope.updateKey = function(key) {
