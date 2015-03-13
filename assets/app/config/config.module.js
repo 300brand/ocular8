@@ -13,33 +13,36 @@ angular.module("adminConfig", [
 }])
 
 .controller("AdminConfigController", [
+	"$log",
 	"$rootScope",
 	"$scope",
 	"Configs",
-	function($rootScope, $scope, Configs) {
-		$scope.configs = Configs.query()
+	function($log, $rootScope, $scope, Configs) {
+		$scope.configs = []
+		$scope.handlerSets = []
+		$scope.update = function(c) {
+			c.$update(function() {
+				$log.log("Updated %s to %s", c.Key, c.Value)
+			})
+		}
 
-		// $scope.updateKey = function(key) {
-		// 	console.log(key, $scope.configs[key].value)
-		// 	adminConfigService.updateKey(key, $scope.configs[key].value)
-		// }
-
-		// var extractConfigs = function(node) {
-		// 	if (!node.hasOwnProperty("dir") || !node.dir) {
-		// 		$scope.configs[node.key] = node
-		// 		return
-		// 	}
-		// 	for (var i = 0; i < node.nodes.length; i++) {
-		// 		extractConfigs(node.nodes[i])
-		// 	}
-		// }
-
-		// adminConfigService.fullDirectory()
-		// 	.success(function(data, status) {
-		// 		extractConfigs(data.node)
-		// 	})
-		// 	.error(function(data, status) {
-		// 		console.error(data, status)
-		// 	})
+		var configs = Configs.query(function() {
+			for (var i = 0; i < configs.length; i++) {
+				var c = configs[i]
+				var s = c.Key.split(/\//)
+				c.HumanKey = s[s.length-1]
+				switch (s[1]) {
+				case "config":
+					$scope.configs.push(c)
+					break
+				case "handlers":
+					if ($scope.handlerSets[s[2]] == undefined) {
+						$scope.handlerSets[s[2]] = []
+					}
+					$scope.handlerSets[s[2]].push(c)
+				}
+				$log.log(c)
+			}
+		})
 	}
 ])

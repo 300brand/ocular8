@@ -1,11 +1,28 @@
 <div class="col-sm-12">
 	<h1>Configuration Settings</h1>
+	<h2>Main Configuration</h2>
 	<div class="row" ng-repeat="config in configs">
-		<div class="col-sm-6">{{ config.key }}</div>
-		<div class="col-sm-5">
-			<a href="#/config" editable-text="config.value" e-class="input-config" onaftersave="updateKey(config.key)">
-				{{ config.value || 'no value' }}
-			</a>
+		<div class="col-sm-12">
+			<div class="row">
+				<div class="col-sm-2">{{ config.HumanKey }}</div>
+				<div class="col-sm-5">{{ config.Desc }}</div>
+				<div class="col-sm-5">
+					<a href="#/config" editable-text="config.Value" e-class="input-config" onaftersave="update(config)" ng-if="config.CanEdit">
+						{{ config.Value || 'no value' }}
+					</a>
+					<span ng-if="!config.CanEdit">
+						{{ config.value || 'no value' }}
+					</span>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-sm-offset-7 col-sm-5">
+					<span class="text-muted">
+						Default: <em>{{ config.Default }}</em>
+					</span>
+				</div>
+			</div>
 		</div>
 	</div>
+	<h2>Handler Configuration</h2>
 </div>
