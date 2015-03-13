@@ -6,29 +6,15 @@ import (
 	"time"
 
 	"github.com/300brand/ocular8/lib/config"
+	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/300brand/ocular8/types"
-	"github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
 	"gopkg.in/mgo.v2/bson"
 )
 
 func GetConfigs(ctx *Context) (out interface{}, err error) {
-	c := etcd.NewClient([]string{config.Etcd()})
-	resp, err := c.Get("/", true, true)
-	if err != nil {
-		return
-	}
-	nodes := []*etcd.Node{resp.Node}
-	configs := make([]*etcd.Node, 0, 64)
-	for i := 0; i < len(nodes); i++ {
-		if nodes[i].Dir {
-			nodes = append(nodes, nodes[i].Nodes...)
-			continue
-		}
-		configs = append(configs, nodes[i])
-	}
-
-	return configs, nil
+	c := etcd.New(config.Etcd())
+	return c.GetList()
 }
 
 func PostConfig(ctx *Context) (out interface{}, err error) {
@@ -37,12 +23,12 @@ func PostConfig(ctx *Context) (out interface{}, err error) {
 }
 
 func GetConfig(ctx *Context) (out interface{}, err error) {
-	c := etcd.NewClient([]string{config.Etcd()})
+	c := etcd.New(config.Etcd())
 	return c.Get(ctx.Vars["key"], false, false)
 }
 
 func PutConfig(ctx *Context) (out interface{}, err error) {
-	c := etcd.NewClient([]string{config.Etcd()})
+	c := etcd.New(config.Etcd())
 	return c.Set(ctx.Vars["key"], ctx.Values.Get("value"), 0)
 }
 
