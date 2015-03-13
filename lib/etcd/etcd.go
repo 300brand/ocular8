@@ -10,7 +10,8 @@ type Item struct {
 	Default string
 	Desc    string
 	Value   string
-	Changed chan bool
+	CanEdit bool
+	Changed chan bool `json:"-"`
 }
 
 type Client struct {
@@ -47,6 +48,53 @@ func (c *Client) GetDefault(key, defaultValue, description string) (value string
 		return
 	}
 	value = resp.Node.Value
+	return
+}
+
+func (c *Client) GetList() (items []*Item, err error) {
+	resp, err := c.Get("/", true, true)
+	if err != nil {
+		return
+	}
+	items = make([]*Item, 0, 64)
+	nodes := []*etcd.Node{resp.Node}
+	for i := 0; i < len(nodes); i++ {
+		if nodes[i].Dir {
+			// recursion without the insanity
+			nodes = append(nodes, nodes[i].Nodes...)
+			continue
+		}
+
+		item := &Item{
+			Key:   nodes[i].Key,
+			Value: nodes[i].Value,
+		}
+		items = append(items, item)
+
+		dir, base := filepath.Split(nodes[i].Key)
+		// Pull out super secret hidden default value
+		defaultKey := filepath.Join(dir, "_"+base+".default")
+		if resp, err = c.Get(defaultKey, false, false); err != nil {
+			if e, ok := err.(*etcd.EtcdError); ok && e.ErrorCode == 100 {
+				err = nil
+				continue
+			}
+			return
+		}
+		item.Default = resp.Node.Value
+
+		// Pull out super secret hidden description
+		descKey := filepath.Join(dir, "_"+base+".desc")
+		if resp, err = c.Get(descKey, false, false); err != nil {
+			if e, ok := err.(*etcd.EtcdError); ok && e.ErrorCode == 100 {
+				err = nil
+				continue
+			}
+			return
+		}
+		item.Desc = resp.Node.Value
+		item.CanEdit = true
+	}
 	return
 }
 
