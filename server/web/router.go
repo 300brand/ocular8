@@ -29,7 +29,7 @@ func Handler(assetsDir string) http.Handler {
 	api := router.PathPrefix("/api/v1").Subrouter()
 	// Config
 	api.Handle("/configs", configs)
-	api.Handle("/configs/{key}", config)
+	api.Handle("/configs/{key:[a-z/]+}", config)
 	// Pubs
 	api.Handle("/pubs", pubs)
 	api.Handle("/pubs/{pubid:[a-f0-9]{24}}", pub)
