@@ -19,7 +19,7 @@ angular.module("adminConfig", [
 	"Configs",
 	function($log, $rootScope, $scope, Configs) {
 		$scope.configs = []
-		$scope.handlerSets = []
+		$scope.handlerSets = {}
 		$scope.update = function(c) {
 			c.$update(function() {
 				$log.log("Updated %s to %s", c.Key, c.Value)
@@ -40,9 +40,12 @@ angular.module("adminConfig", [
 						$scope.handlerSets[s[2]] = []
 					}
 					$scope.handlerSets[s[2]].push(c)
+					break
+				default:
+					$log.error("Not sure how to handle %s", s[1])
 				}
-				$log.log(c)
 			}
+			$log.log($scope.handlerSets)
 		})
 	}
 ])
