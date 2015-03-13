@@ -15,12 +15,12 @@
 <div class="col-sm-12">
 	<div class="row">
 		<div class="col-sm-2">{{ config.HumanKey }}</div>
-		<div class="col-sm-5">{{ config.Desc }}</div>
+		<div class="col-sm-5">{{ config.Desc || 'System variable. Editing not allowed' }}</div>
 		<div class="col-sm-5">
 			<a href="#/config" editable-text="config.Value" e-class="input-config" onaftersave="update(config)" ng-if="config.CanEdit">
 				{{ config.Value || 'no value' }}
 			</a>
-			<span ng-if="!config.CanEdit">
+			<span ng-if="!config.CanEdit" title="Editing not allowed">
 				{{ config.value || 'no value' }}
 			</span>
 		</div>
