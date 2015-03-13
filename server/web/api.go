@@ -29,7 +29,17 @@ func GetConfig(ctx *Context) (out interface{}, err error) {
 
 func PutConfig(ctx *Context) (out interface{}, err error) {
 	c := etcd.New(config.Etcd())
-	return c.Set(ctx.Vars["key"], ctx.Values.Get("value"), 0)
+
+	// value used to retain compatibility with etcd
+	value := ctx.Values.Get("value")
+
+	// AngularJS $update on an Item
+	item := new(etcd.Item)
+	if err := json.NewDecoder(ctx.Body).Decode(item); err == nil {
+		value = item.Value
+	}
+
+	return c.Set(ctx.Vars["key"], value, 0)
 }
 
 func DelConfig(ctx *Context) (out interface{}, err error) {
