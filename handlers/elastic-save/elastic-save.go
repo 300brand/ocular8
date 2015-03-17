@@ -60,10 +60,24 @@ func main() {
 		ids = append(ids, bson.ObjectIdHex(id))
 	}
 
-	query := bson.M{
-		"_id": bson.M{
-			"$in": ids,
-		},
+	var query bson.M
+	if len(ids) == 1 {
+		query = bson.M{
+			"$or": []bson.M{
+				bson.M{
+					"_id": ids[0],
+				},
+				bson.M{
+					"batchid": ids[0],
+				},
+			},
+		}
+	} else {
+		query = bson.M{
+			"_id": bson.M{
+				"$in": ids,
+			},
+		}
 	}
 	elasticArticles := make([]types.ElasticArticle, 0, len(ids))
 	err = db.C("articles").Find(query).All(&elasticArticles)
