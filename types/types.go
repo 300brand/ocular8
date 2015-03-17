@@ -37,6 +37,7 @@ type Article struct {
 	Id           bson.ObjectId `bson:"_id"`
 	FeedId       bson.ObjectId
 	PubId        bson.ObjectId
+	BatchId      bson.ObjectId `bson:",omitempty"`
 	Url          string
 	Title        string
 	Author       string
