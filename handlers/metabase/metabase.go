@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/xml"
 	"flag"
 	"fmt"
-	"gopkg.in/mgo.v2/bson"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +16,7 @@ import (
 	goetcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var (
@@ -118,8 +117,8 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 	return
 }
 
-func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
-	ids = make([]bson.ObjectId, 0, len(r.Articles))
+func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
+	batchId = bson.NewObjectId()
 	docs := make([]interface{}, 0, len(r.Articles))
 	for i := range r.Articles {
 		ra := &r.Articles[i]
@@ -128,6 +127,7 @@ func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 		author = strings.TrimPrefix(author, "By ") // Some have it twice..
 		a := &types.Article{
 			Id:           bson.NewObjectId(),
+			BatchId:      batchId,
 			Url:          ra.Url,
 			Title:        ra.Title,
 			Author:       author,
@@ -148,7 +148,6 @@ func saveArticles(r *metabase.Response) (ids []bson.ObjectId, err error) {
 			return
 		}
 		docs = append(docs, a)
-		ids = append(ids, a.Id)
 	}
 	err = db.C("articles").Insert(docs...)
 	return
@@ -217,28 +216,21 @@ func main() {
 		}
 	}
 
-	ids, err := saveArticles(result)
+	batchId, err := saveArticles(result)
 	if err != nil {
 		glog.Fatalf("saveArticles: %s", err)
 	}
 	glog.Infof("saveArticles cache hit %d miss %d", cacheHit, cacheMiss)
 
-	// This payload is different from others to fascilitate bulk elastic inserts
-	payload := make([]byte, 0, len(ids)*25)
-	for _, id := range ids {
-		payload = append(payload, []byte(id.Hex())...)
-		payload = append(payload, ' ')
-	}
-	payload[len(payload)-1] = '\n'
-	body := bytes.NewReader(payload)
+	body := strings.NewReader(batchId.Hex())
 	bodyType := "multipart/form-data"
 
-	nsqURL.Path = "/mpub"
+	nsqURL.Path = "/pub"
 	nsqURL.RawQuery = (url.Values{"topic": []string{nsqTopic}}).Encode()
 	if _, err := http.Post(nsqURL.String(), bodyType, body); err != nil {
 		glog.Fatalf("http.Post(%s): %s", nsqURL.String(), err)
 	}
-	glog.Infof("Sent %d Article IDs to %s", len(ids), nsqURL)
+	glog.Infof("Sent %s to %s", batchId.Hex(), nsqURL)
 
 	if _, err = etcd.New(*etcdUrl).Set("/handlers/metabase/lastrun", time.Now().Format(time.RFC3339), 0); err != nil {
 		glog.Fatal(err)
