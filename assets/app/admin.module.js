@@ -6,6 +6,7 @@ angular.module("admin", [
 	"xeditable",
 
 	"adminConfig",
+	"adminHandler",
 	"adminPubs"
 ])
 
