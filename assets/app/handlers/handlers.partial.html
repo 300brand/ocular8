@@ -1,19 +1,22 @@
 <div class="col-sm-12">
 	<h1>Handlers</h1>
+	<p class="lead">Enable and disable handlers real quick-like</p>
+</div>
 
-	<div class="row" ng-repeat="handler in handlers">
-		<div class="col-sm-3">
-			<div class="btn-group" data-toggle="buttons">
-				<label class="btn btn-primary" ng-class="{ active: handler.Active }" ng-click="update(handler, true)">
-					<input type="radio" name="{{ handler.Name }}" autocomplete="off" ng-checked="handler.Active">
-					Enabled
-				</label>
-				<label class="btn btn-primary" ng-class="{ active: !handler.Active }" ng-click="update(handler, false)">
-					<input type="radio" name="{{ handler.Name }}" autocomplete="off" ng-checked="!handler.Active">
-					Disabled
-				</label>
-			</div>
+<div class="col-sm-12">
+	<div class="row">
+		<div class="col-sm-6" ng-repeat="handler in handlers">
+			<p>
+				<button
+					type="button"
+					class="btn btn-block"
+					autocomplete="off"
+					ng-click="update(handler, !handler.Active)"
+					ng-class="{ 'btn-success':handler.Active, 'btn-danger':!handler.Active }"
+					>
+					{{ handler.Name }}
+				</button>
+			</p>
 		</div>
-		<div class="col-sm-9"><p>{{ handler.Name }}</p></div>
 	</div>
 </div>

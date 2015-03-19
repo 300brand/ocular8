@@ -23,6 +23,7 @@ angular.module("adminHandler", [
 		$scope.update = function(c, v) {
 			c.Value = (v) ? "true" : "false"
 			c.$update(function() {
+				c.Active = c.Value == "true"
 				$log.log("Updated %s to %s", c.Key, c.Value)
 			})
 		}
