@@ -27,6 +27,7 @@ type Context struct {
 	DB     *mgo.Database
 	Values url.Values
 	Vars   map[string]string
+	R      *http.Request
 	W      http.ResponseWriter
 }
 
@@ -67,6 +68,7 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		DB:     mongo.Clone().DB(""),
 		Values: r.URL.Query(),
 		Vars:   mux.Vars(r),
+		R:      r,
 		W:      w,
 	}
 	defer ctx.DB.Session.Close()

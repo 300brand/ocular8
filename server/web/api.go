@@ -2,7 +2,10 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/300brand/ocular8/lib/config"
@@ -79,9 +82,52 @@ func GetPubs(ctx *Context) (out interface{}, err error) {
 		}
 	}
 
+	// Fetch total
+	total, err := ctx.DB.C("pubs").Find(query).Count()
+	if err != nil {
+		return
+	}
+
+	// Fetch actual subset of pubs
 	pubs := make([]types.Pub, limit)
 	glog.Infof("SORT: %s LIMIT: %d OFFSET: %d QUERY: %+v", sort, limit, offset, query)
 	err = ctx.DB.C("pubs").Find(query).Sort(sort).Limit(limit).Skip(offset).All(&pubs)
+	if err != nil {
+		return
+	}
+
+	// Set headers for totals and links
+	headers := ctx.W.Header()
+	pages := int(math.Ceil(float64(total) / float64(limit)))
+	if pages > 1 {
+		links := make([]string, 0, 14)
+		v := ctx.Values
+		f := fmt.Sprintf(`<%s?%%s>; rel="%%s"; title="%%s"`, ctx.R.URL.Path)
+		// First / Prev if able
+		if offset > 0 {
+			// First
+			v.Set("offset", "0")
+			links = append(links, fmt.Sprintf(f, v.Encode(), "first", "First"))
+			// Previous
+			v.Set("offset", fmt.Sprint(offset-limit))
+			links = append(links, fmt.Sprintf(f, v.Encode(), "prev", "Previous"))
+		}
+		// Next / Last if able
+		if o := offset + limit; o < total {
+			// Next
+			v.Set("offset", fmt.Sprint(o))
+			links = append(links, fmt.Sprintf(f, v.Encode(), "next", "Next"))
+			// Last
+			v.Set("offset", fmt.Sprint((pages-1)*limit))
+			links = append(links, fmt.Sprintf(f, v.Encode(), "last", "Last"))
+		}
+
+		headers.Add("Link", strings.Join(links, ", "))
+	}
+
+	headers.Add("X-Total-Count", fmt.Sprint(total))
+	headers.Add("X-Total-Pages", fmt.Sprint(pages))
+
 	return pubs, err
 }
 
