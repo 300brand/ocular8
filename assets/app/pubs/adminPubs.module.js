@@ -17,6 +17,10 @@ angular.module("adminPubs", [
 		})
 		.when("/pubs/:pubid", {
 			controller:  "AdminPubsEditController",
+			templateUrl: "/app/pubs/view.partial.html"
+		})
+		.when("/pubs/edit/:pubid", {
+			controller:  "AdminPubsEditController",
 			templateUrl: "/app/pubs/form.partial.html"
 		})
 }])
@@ -154,5 +158,19 @@ angular.module("adminPubs", [
 				}
 			})
 		}
+	}
+])
+
+.controller("AdminPubsViewController", [
+	"$log",
+	"$rootScope",
+	"$routeParams",
+	"$scope",
+	"Pubs",
+	"PubFeeds",
+	"Feeds",
+	function($log, $rootScope, $routeParams, $scope, Pubs, PubFeeds, Feeds) {
+		$scope.Pub = Pubs.get({ pubid: $routeParams.pubid })
+		$scope.Feeds = PubFeeds.query({ pubid: $routeParams.pubid })
 	}
 ])

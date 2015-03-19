@@ -1,0 +1,24 @@
+<div class="col-sm-12">
+	<h1>{{ Pub.Name }}</h1>
+
+	<h2>Homepage</h2>
+	<p><a ng-if="Pub.Description" ng-href="{{ Pub.Homepage }}" target="_blank">{{ Pub.Homepage }}</a></p>
+	<p ng-if="!Pub.Description" class="text-muted"><em>None supplied</em></p>
+
+	<h2>Description</h2>
+	<p ng-if="Pub.Description">{{ Pub.Description }}</p>
+	<p ng-if="!Pub.Description" class="text-muted"><em>None supplied</em></p>
+
+	<h2>Readership</h2>
+	{{ Pub.NumReaders | number }} Readers
+
+	<h2>Feeds</h2>
+	<div class="row" ng-repeat="Feed in Feeds">
+		<div class="col-sm-8"><p>
+			<span ng-if="Feed.MetabaseId > 0" class="text-danger" title="LexisNexis Feed">*</span>
+			{{ Feed.Url }}
+		</p></div>
+		<div class="col-sm-2"><p title="Last Download">{{ Feed.LastDownload > 0 && (Feed.LastDownload | date) || "Never" }}</p></div>
+		<div class="col-sm-2"><p title="Next Download">{{ Feed.NextDownload > 0 && (Feed.NextDownload | date) || "Soon" }}</p></div>
+	</div>
+</div>
