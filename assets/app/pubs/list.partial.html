@@ -1,6 +1,10 @@
 <div class="col-sm-12">
 	<h1>Publications</h1>
-
+	<p class="lead">
+		{{ Total | number }} Result{{ Total != 1 && "s" || "" }}. Page {{ Offset + 1 }} of {{ TotalPages | number }}
+	</p>
+</div>
+<div class="col-sm-12">
 	<div class="row">
 		<div class="col-sm-8">
 			<form class="form-horizontal" ng-submit="search()">
@@ -31,7 +35,6 @@
 				<th>Feeds</th>
 				<th>Articles</th>
 				<th>Readers</th>
-				<th>Last Modified</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -41,8 +44,28 @@
 				<td>{{ Pub.NumFeeds | number }}</td>
 				<td>{{ Pub.NumArticles | number }}</td>
 				<td>{{ Pub.NumReaders | number }}</td>
-				<td>{{ Pub.LastUpdate | date }}</td>
 			</tr>
 		</tbody>
 	</table>
+
+	<div class="row">
+		<div class="col-sm-12 text-center">
+			<nav>
+				<ul class="pager">
+					<li ng-class="{disabled: Links.first == null}">
+						<a href="#pubs?{{ Links.first.qs }}"><span aria-hidden="true">&laquo;</span> First</a>
+					</li>
+					<li ng-class="{disabled: Links.prev == null}">
+						<a href="#pubs?{{ Links.prev.qs }}"><span aria-hidden="true">&lsaquo;</span> Previous</a>
+					</li>
+					<li ng-class="{disabled: Links.next == null}">
+						<a href="#pubs?{{ Links.next.qs }}">Next <span aria-hidden="true">&rsaquo;</span></a>
+					</li>
+					<li ng-class="{disabled: Links.last == null}">
+						<a href="#pubs?{{ Links.last.qs }}">Last <span aria-hidden="true">&raquo;</span></a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
 </div>

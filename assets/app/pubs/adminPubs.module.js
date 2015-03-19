@@ -80,7 +80,40 @@ angular.module("adminPubs", [
 			offset: $routeParams.offset || 0,
 			sort:   $routeParams.sort || "name"
 		}
-		$scope.Pubs = Pubs.query($scope.Params)
+		$scope.Total = 0
+		$scope.TotalPages = 0
+		$scope.Links = {}
+		Pubs.query($scope.Params, function(data, responseHeaders) {
+			$log.log(responseHeaders())
+
+			$scope.Pubs = data
+			$scope.Total = responseHeaders("X-Total-Count")
+			$scope.TotalPages = responseHeaders("X-Total-Pages")
+
+			$scope.Links = {
+				"first": null,
+				"prev":  null,
+				"page":  [],
+				"next":  null,
+				"last":  null
+			}
+			var links = responseHeaders("Link").split(/, /)
+			var relRE = /rel="([^"]+)"/
+			var titleRE = /title="([^"]+)"/
+			var offsetRE = /offset=(\d+)/
+			var p = $scope.Params
+			for (var i = 0; i < links.length; i++) {
+				var rel = relRE.exec(links[i])[1]
+				var l = {
+					"title":  titleRE.exec(links[i])[1],
+					"offset": offsetRE.exec(links[i])[1],
+				}
+				l["qs"] = "query="+escape(p.query)+"&limit="+p.limit+"&offset="+l["offset"]+"&sort="+p.sort
+				$scope.Links[rel] = l
+			}
+
+			$log.log($scope.Links)
+		})
 		$scope.search = function() {
 			$route.updateParams($scope.Params)
 		}
