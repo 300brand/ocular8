@@ -16,7 +16,7 @@ angular.module("adminPubs", [
 			templateUrl: "/app/pubs/form.partial.html"
 		})
 		.when("/pubs/:pubid", {
-			controller:  "AdminPubsEditController",
+			controller:  "AdminPubsViewController",
 			templateUrl: "/app/pubs/view.partial.html"
 		})
 		.when("/pubs/edit/:pubid", {
@@ -34,6 +34,7 @@ angular.module("adminPubs", [
 	"PubFeeds",
 	"Feeds",
 	function($log, $rootScope, $routeParams, $scope, Pubs, PubFeeds, Feeds) {
+		$rootScope.PageTitle = "Update Publication"
 		$scope.Title = "Update"
 		$scope.Pub = Pubs.get({ pubid: $routeParams.pubid })
 		$scope.Feeds = PubFeeds.query({ pubid: $routeParams.pubid })
@@ -78,14 +79,14 @@ angular.module("adminPubs", [
 	"$scope",
 	"Pubs",
 	function($log, $rootScope, $route, $routeParams, $scope, Pubs) {
+		$rootScope.PageTitle = "Publications"
 		$scope.Params = {
 			query:  $routeParams.query,
 			limit:  $routeParams.limit || 20,
 			offset: $routeParams.offset || 0,
 			sort:   $routeParams.sort || "name"
 		}
-		$scope.Total = 0
-		$scope.TotalPages = 0
+		$scope.Page = ($scope.Params.offset / $scope.Params.limit) + 1
 		$scope.Links = {}
 		Pubs.query($scope.Params, function(data, responseHeaders) {
 			$log.log(responseHeaders())
@@ -119,6 +120,7 @@ angular.module("adminPubs", [
 			$log.log($scope.Links)
 		})
 		$scope.search = function() {
+			$scope.Params.offset  = 0
 			$route.updateParams($scope.Params)
 		}
 	}
@@ -131,6 +133,7 @@ angular.module("adminPubs", [
 	"Pubs",
 	"PubFeeds",
 	function($log, $rootScope, $scope, Pubs, PubFeeds) {
+		$rootScope.PageTitle = "New Publication"
 		$scope.Title = "New"
 		$scope.Pub = new Pubs()
 		$scope.Feeds = []
@@ -170,7 +173,10 @@ angular.module("adminPubs", [
 	"PubFeeds",
 	"Feeds",
 	function($log, $rootScope, $routeParams, $scope, Pubs, PubFeeds, Feeds) {
-		$scope.Pub = Pubs.get({ pubid: $routeParams.pubid })
+		$rootScope.PageTitle = "View Publication"
+		$scope.Pub = Pubs.get({ pubid: $routeParams.pubid }, function() {
+			$rootScope.PageTitle = "Publication: " + $scope.Pub.Name
+		})
 		$scope.Feeds = PubFeeds.query({ pubid: $routeParams.pubid })
 	}
 ])

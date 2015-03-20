@@ -1,11 +1,10 @@
 <div class="col-sm-12">
-	<h1>Configuration Settings</h1>
-	<h2>Main Configuration</h2>
+	<h1>Main Configuration</h1>
 	<div class="row" ng-repeat="config in configs" ng-include="'single-config.partial.html'"></div>
-	<h2>Handler Configuration</h2>
+	<h2>Handler Configuration</h1>
 	<div class="row" ng-repeat="(name, handlerConfigs) in handlerSets">
 		<div class="col-sm-12">
-			<h3>{{ name  }}</h3>
+			<h2>{{ name  }}</h2>
 			<div class="row" ng-repeat="config in handlerConfigs" ng-include="'single-config.partial.html'"></div>
 		</div>
 	</div>

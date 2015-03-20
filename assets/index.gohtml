@@ -2,7 +2,7 @@
 <html lang="en" ng-app="admin">
 <head>
 	<meta charset="utf-8">
-	<title>Ocular8 Admin *GO*</title>
+	<title>{{ "{{ PageTitle || 'Admin' }}"}} | Ocular8</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
 	<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
@@ -55,12 +55,18 @@
 	</style>
 </head>
 <body>
-<nav class="navbar navbar-inverse navbar-top" role="navigation">
+<nav class="navbar  navbar-top" role="navigation">
 	<div class="container-fluid">
 		<div class="navbar-header">
-			<a class="navbar-brand" href="#/">
-				Ocular8 Admin
-			</a>
+			<span class="navbar-brand">
+				<a href="#/">
+					Ocular8 Admin
+				</a>
+				<span ng-if="PageTitle">
+					<span class="glyphicon glyphicon-chevron-right"></span>
+					{{ "{{ PageTitle }}" }}
+				</span>
+			</span>
 			<div class="navbar-text navbar-right">
 				<span class="glyphicon glyphicon-refresh glyphicon-spin" ng-show="RequestsActive"></span>
 			</div>

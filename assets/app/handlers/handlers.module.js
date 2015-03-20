@@ -18,6 +18,7 @@ angular.module("adminHandler", [
 	"$scope",
 	"Configs",
 	function($log, $rootScope, $scope, Configs) {
+		$rootScope.PageTitle = "Handlers"
 		$scope.handlers = []
 
 		$scope.update = function(c, v) {
