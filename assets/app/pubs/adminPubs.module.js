@@ -171,12 +171,13 @@ angular.module("adminPubs", [
 	"$scope",
 	"Pubs",
 	"PubFeeds",
-	"Feeds",
-	function($log, $rootScope, $routeParams, $scope, Pubs, PubFeeds, Feeds) {
+	"PubArticles",
+	function($log, $rootScope, $routeParams, $scope, Pubs, PubFeeds, PubArticles) {
 		$rootScope.PageTitle = "View Publication"
 		$scope.Pub = Pubs.get({ pubid: $routeParams.pubid }, function() {
 			$rootScope.PageTitle = "Publication: " + $scope.Pub.Name
 		})
 		$scope.Feeds = PubFeeds.query({ pubid: $routeParams.pubid })
+		$scope.Articles = PubArticles.query({ pubid: $routeParams.pubid })
 	}
 ])

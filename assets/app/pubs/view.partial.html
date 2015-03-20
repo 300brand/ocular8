@@ -1,24 +1,57 @@
 <div class="col-sm-12">
 	<h1>{{ Pub.Name }}</h1>
 
-	<h2>Homepage</h2>
-	<p><a ng-if="Pub.Description" ng-href="{{ Pub.Homepage }}" target="_blank">{{ Pub.Homepage }}</a></p>
-	<p ng-if="!Pub.Description" class="text-muted"><em>None supplied</em></p>
+	<div class="row">
+		<div class="col-sm-6">
+			<h2>Homepage</h2>
+			<p><a ng-if="Pub.Description" ng-href="{{ Pub.Homepage }}" target="_blank">{{ Pub.Homepage }}</a></p>
+			<p ng-if="!Pub.Description" class="text-muted"><em>None supplied</em></p>
 
-	<h2>Description</h2>
-	<p ng-if="Pub.Description">{{ Pub.Description }}</p>
-	<p ng-if="!Pub.Description" class="text-muted"><em>None supplied</em></p>
+			<h2>Readership</h2>
+			<p>{{ Pub.NumReaders | number }} Readers</p>
+		</div>
+		<div class="col-sm-6">
+			<h2>Description</h2>
+			<p ng-if="Pub.Description">{{ Pub.Description }}</p>
+			<p ng-if="!Pub.Description" class="text-muted"><em>None supplied</em></p>
 
-	<h2>Readership</h2>
-	{{ Pub.NumReaders | number }} Readers
+			<h2>Feeds</h2>
+			<div class="row" ng-repeat="Feed in Feeds">
+				<div class="col-sm-8"><p>
+					<span ng-if="Feed.MetabaseId > 0" class="text-danger" title="LexisNexis Feed">*</span>
+					{{ Feed.Url }}
+				</p></div>
+				<div class="col-sm-2"><p title="Last Download">{{ Feed.LastDownload > 0 && (Feed.LastDownload | date) || "Never" }}</p></div>
+				<div class="col-sm-2"><p title="Next Download">{{ Feed.NextDownload > 0 && (Feed.NextDownload | date) || "Soon" }}</p></div>
+			</div>
+		</div>
+	</div>
 
-	<h2>Feeds</h2>
-	<div class="row" ng-repeat="Feed in Feeds">
-		<div class="col-sm-8"><p>
-			<span ng-if="Feed.MetabaseId > 0" class="text-danger" title="LexisNexis Feed">*</span>
-			{{ Feed.Url }}
-		</p></div>
-		<div class="col-sm-2"><p title="Last Download">{{ Feed.LastDownload > 0 && (Feed.LastDownload | date) || "Never" }}</p></div>
-		<div class="col-sm-2"><p title="Next Download">{{ Feed.NextDownload > 0 && (Feed.NextDownload | date) || "Soon" }}</p></div>
+	<div class="row">
+		<div class="col-sm-12">
+			<h2>Articles</h2>
+
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th>Id</th>
+						<th>Title</th>
+						<th>Author</th>
+						<th>Published</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr ng-repeat="Article in Articles">
+						<td>
+							<a ng-href="#/articles/{{ Article.Id }}"><code>{{ Article.Id }}</code></a>
+							<span class="text-danger" ng-if="Article.IsLexisNexis">*</span>
+						</td>
+						<td><a href="{{ Article.Url }}" target="_blank">{{ Article.Title }}</a></td>
+						<td>{{ Article.Author }}</td>
+						<td>{{ Article.Published | date }}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
 	</div>
 </div>
