@@ -216,7 +216,17 @@ func DelFeed(ctx *Context) (out interface{}, err error) {
 }
 
 func GetArticles(ctx *Context) (out interface{}, err error) {
-	return
+	limit := 20
+	articles := make([]types.Article, limit)
+	query := bson.M{}
+	if pubid, ok := ctx.Vars["pubid"]; ok {
+		query["pubid"] = bson.ObjectIdHex(pubid)
+	}
+	if feedid, ok := ctx.Vars["feedid"]; ok {
+		query["feedid"] = bson.ObjectIdHex(feedid)
+	}
+	err = ctx.DB.C("articles").Find(query).Sort("-_id").Limit(limit).All(&articles)
+	return articles, err
 }
 
 func PostArticle(ctx *Context) (out interface{}, err error) {
