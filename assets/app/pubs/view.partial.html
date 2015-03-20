@@ -38,17 +38,20 @@
 						<th>Title</th>
 						<th>Author</th>
 						<th>Published</th>
+						<th>View</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr ng-repeat="Article in Articles">
 						<td>
-							<a ng-href="#/articles/{{ Article.Id }}"><code>{{ Article.Id }}</code></a>
-							<span class="text-danger" ng-if="Article.IsLexisNexis">*</span>
+							<code>{{ Article.Id }}</code>
 						</td>
 						<td><a href="{{ Article.Url }}" target="_blank">{{ Article.Title }}</a></td>
 						<td>{{ Article.Author }}</td>
 						<td>{{ Article.Published | date }}</td>
+						<td>
+							<a ng-href="#/articles/{{ Article.Id }}">View</a>
+						</td>
 					</tr>
 				</tbody>
 			</table>
