@@ -2,6 +2,7 @@ package config
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/300brand/ocular8/lib/etcd"
@@ -29,8 +30,12 @@ func Etcd() string {
 	return findValue(Data.Config, "etcd")
 }
 
-func Elastic() string {
-	return findValue(Data.Config, "elastic")
+func ElasticHosts() []string {
+	return strings.Split(findValue(Data.Config, "elastichosts"), ",")
+}
+
+func ElasticIndex() string {
+	return findValue(Data.Config, "elasticindex")
 }
 
 func HandlersDir() string {
