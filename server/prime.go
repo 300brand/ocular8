@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/300brand/ocular8/types"
@@ -21,6 +20,7 @@ var (
 )
 
 func prime(elasticHosts []string, index string) (err error) {
+	glog.Infof("hosts: %+v index: %q", elasticHosts, index)
 	conn := elastigo.NewConn()
 	conn.SetHosts(elasticHosts)
 
@@ -57,6 +57,7 @@ func prime(elasticHosts []string, index string) (err error) {
 			},
 			"article": bson.M{
 				"properties": bson.M{
+					"Id":           bson.M{"type": "string", "index": "not_analyzed"},
 					"FeedId":       bson.M{"type": "string", "index": "not_analyzed"},
 					"PubId":        bson.M{"type": "string", "index": "not_analyzed"},
 					"BatchId":      bson.M{"type": "string", "index": "not_analyzed"},
@@ -77,6 +78,7 @@ func prime(elasticHosts []string, index string) (err error) {
 	if err != nil {
 		return
 	}
+	glog.Infof("CreateIndexWithSettings: %+v", resp)
 	return
 }
 

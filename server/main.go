@@ -44,7 +44,7 @@ func main() {
 	}
 
 	if *doPrime {
-		if err := prime(config.Mongo()); err != nil {
+		if err := prime(config.ElasticHosts(), config.ElasticIndex()); err != nil {
 			glog.Fatalf("[prime] %s", err)
 		}
 		return
