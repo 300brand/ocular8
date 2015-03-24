@@ -6,9 +6,14 @@
 			"desc":    "Etcd HTTP address"
 		},
 		{
-			"key":     "elastic",
+			"key":     "elastichosts",
 			"default": "localhost",
-			"desc":    "ElasticSearch host"
+			"desc":    "ElasticSearch hosts, comma-separated"
+		},
+		{
+			"key":     "elasticindex",
+			"default": "ocular8",
+			"desc":    "ElasticSearch index name"
 		},
 		{
 			"key":     "mongo",
