@@ -6,6 +6,7 @@ docker run --detach --name o8-mongo --publish 27017:27017 --volume /data/databas
 docker run --detach --name nsqlookupd --publish 4160:4160 --publish 4161:4161 nsqio/nsqlookupd
 docker run --detach --name nsqd --publish 4150:4150 --publish 4151:4151 nsqio/nsqd --broadcast-address=${IP} --lookupd-tcp-address=172.17.42.1:4160
 docker run --detach --name nsqadmin --publish 4171:4171 nsqio/nsqadmin -lookupd-http-address=172.17.42.1:4161
+mkdir -p /data/database/o8-elastic
 cat <<CONFIG > /data/database/o8-elastic/elasticsearch.yml
 path:
   logs: /data/log
