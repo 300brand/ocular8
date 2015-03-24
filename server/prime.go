@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
+	"github.com/mattbaird/elastigo/lib"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -18,7 +20,67 @@ var (
 	primeRPC = flag.String("primerpc", "http://okcodev:52204/rpc", "Prime RPC address")
 )
 
-func prime(mongoDSN string) (err error) {
+func prime(elasticHosts []string, index string) (err error) {
+	conn := elastigo.NewConn()
+	conn.SetHosts(elasticHosts)
+
+	settings := struct {
+		Mappings bson.M `json:"mappings"`
+	}{
+		Mappings: bson.M{
+			"pub": bson.M{
+				"properties": bson.M{
+					"Name":        bson.M{"type": "string", "index": "analyzed"},
+					"Homepage":    bson.M{"type": "string", "index": "no"},
+					"Description": bson.M{"type": "string", "index": "analyzed"},
+					"NumArticles": bson.M{"type": "integer"},
+					"NumFeeds":    bson.M{"type": "integer"},
+					"NumReaders":  bson.M{"type": "integer"},
+					"XPathBody":   bson.M{"type": "string", "index": "no"},
+					"XPathAuthor": bson.M{"type": "string", "index": "no"},
+					"XPathDate":   bson.M{"type": "string", "index": "no"},
+					"XPathTitle":  bson.M{"type": "string", "index": "no"},
+					"LastUpdate":  bson.M{"type": "date"},
+					"NeedsReview": bson.M{"type": "boolean"},
+				},
+			},
+			"feed": bson.M{
+				"properties": bson.M{
+					"PubId":        bson.M{"type": "string", "index": "not_analyzed"},
+					"MetabaseId":   bson.M{"type": "long"},
+					"Url":          bson.M{"type": "string", "index": "not_analyzed"},
+					"NumArticles":  bson.M{"type": "integer"},
+					"LastDownload": bson.M{"type": "date"},
+					"NextDownload": bson.M{"type": "date"},
+					"Ignore":       bson.M{"type": "boolean"},
+				},
+			},
+			"article": bson.M{
+				"properties": bson.M{
+					"FeedId":       bson.M{"type": "string", "index": "not_analyzed"},
+					"PubId":        bson.M{"type": "string", "index": "not_analyzed"},
+					"BatchId":      bson.M{"type": "string", "index": "not_analyzed"},
+					"Url":          bson.M{"type": "string", "index": "not_analyzed"},
+					"Title":        bson.M{"type": "string", "index": "analyzed"},
+					"Author":       bson.M{"type": "string", "index": "analyzed"},
+					"Published":    bson.M{"type": "date"},
+					"BodyText":     bson.M{"type": "string", "index": "analyzed"},
+					"BodyHTML":     bson.M{"type": "string", "index": "no"},
+					"HTML":         bson.M{"type": "string", "index": "no"},
+					"LoadTime":     bson.M{"type": "long"},
+					"IsLexisNexis": bson.M{"type": "boolean"},
+				},
+			},
+		},
+	}
+	resp, err := conn.CreateIndexWithSettings(index, settings)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func _prime(mongoDSN string) (err error) {
 	s, err := mgo.Dial(mongoDSN)
 	if err != nil {
 		return
