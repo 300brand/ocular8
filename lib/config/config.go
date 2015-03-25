@@ -42,8 +42,8 @@ func HandlersDir() string {
 	return findValue(Data.Config, "handlers")
 }
 
-func Mongo() string {
-	return findValue(Data.Config, "mongo")
+func MysqlDSN() string {
+	return findValue(Data.Config, "mysqldsn")
 }
 
 func Nsqhttp() string {

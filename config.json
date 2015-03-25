@@ -16,8 +16,8 @@
 			"desc":    "ElasticSearch index name"
 		},
 		{
-			"key":     "mongo",
-			"default": "mongodb://localhost:27017/ocular8",
+			"key":     "mysqldsn",
+			"default": "root@mysql(localhost:3307)/ocular8",
 			"desc":    "Connection string to MongoDB"
 		},
 		{
