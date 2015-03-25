@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"net/http"
 	"time"
 
 	"github.com/300brand/ocular8/types"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
 	"gopkg.in/mgo.v2"
@@ -19,8 +21,43 @@ var (
 	primeRPC = flag.String("primerpc", "http://okcodev:52204/rpc", "Prime RPC address")
 )
 
-func prime(elasticHosts []string, index string) (err error) {
-	glog.Infof("hosts: %+v index: %q", elasticHosts, index)
+func prime(elasticHosts []string, index, mysqldsn string) (err error) {
+	db, err := sql.Open("mysql", mysqldsn)
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	creates := []string{
+		`CREATE TABLE IF NOT EXISTS processing (
+			id          SERIAL PRIMARY KEY,
+			article_id  CHAR(24) NOT NULL UNIQUE,
+			feed_id     CHAR(24) NOT NULL INDEX,
+			pub_id      CHAR(24) NOT NULL INDEX,
+			queue       VARCHAR(64),
+			data        MEDIUMBLOB,
+			started     DATETIME(6),
+			last_action TIMESTAMP(6)
+		)`,
+		`CREATE TABLE IF NOT EXISTS errors (
+			id          SERIAL PRIMARY KEY,
+			article_id  CHAR(24) NOT NULL INDEX,
+			feed_id     CHAR(24) NOT NULL INDEX,
+			pub_id      CHAR(24) NOT NULL INDEX,
+			queue       VARCHAR(64),
+			data        MEDIUMBLOB,
+			started     DATETIME(6),
+			last_action DATETIME(6),
+			added       TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,
+			reason      TEXT
+		)`,
+	}
+	for _, query := range creates {
+		if _, err = db.Exec(query); err != nil {
+			return
+		}
+	}
+
 	conn := elastigo.NewConn()
 	conn.SetHosts(elasticHosts)
 
@@ -82,46 +119,9 @@ func prime(elasticHosts []string, index string) (err error) {
 	return
 }
 
-func _prime(mongoDSN string) (err error) {
-	s, err := mgo.Dial(mongoDSN)
-	if err != nil {
+	if _, err = conn.CreateIndexWithSettings(index, settings); err != nil {
 		return
 	}
-	defer s.Close()
-
-	db := s.DB("")
-	cp := db.C("pubs")
-	cf := db.C("feeds")
-	ca := db.C("articles")
-
-	glog.Infof("Empty pubs and feeds collections")
-	cp.RemoveAll(nil)
-	cf.RemoveAll(nil)
-
-	glog.Infof("Ensure indexes")
-	cf.EnsureIndex(mgo.Index{
-		Key:        []string{"metabaseid"},
-		Background: true,
-		Sparse:     true,
-		Unique:     true,
-	})
-	cf.EnsureIndexKey("pubid")
-	cf.EnsureIndexKey("ignore")
-	ca.EnsureIndexKey("feedid")
-	ca.EnsureIndexKey("pubid")
-	ca.EnsureIndexKey("islexisnexis")
-	ca.EnsureIndex(mgo.Index{
-		Key:        []string{"url"},
-		Background: true,
-		Sparse:     true,
-		Unique:     true,
-	})
-	ca.EnsureIndex(mgo.Index{
-		Key:        []string{"metabase.id"},
-		Background: true,
-		Sparse:     true,
-		Unique:     true,
-	})
 
 	// Temporary structs to hold original data
 	type P struct {
@@ -165,7 +165,7 @@ func _prime(mongoDSN string) (err error) {
 		return
 	}
 
-	pubFeeds := func(id bson.ObjectId) (err error) {
+	pubFeeds := func(id bson.ObjectId, indexer *elastigo.BulkIndexer) (numfeeds int, err error) {
 		feedquery := bson.M{
 			"id":     id.Hex(),
 			"method": "Publication.View",
@@ -212,36 +212,42 @@ func _prime(mongoDSN string) (err error) {
 
 		for _, f := range result.Result.Feeds.Feeds {
 			glog.Infof("FEED %s", f.Id.Hex())
-			err = cf.Insert(types.Feed{
+			feed := &types.Feed{
 				Id:    f.Id,
 				PubId: id,
 				Url:   f.Url,
-			})
-			if err != nil {
+			}
+			if indexer.Index(index, "feed", f.Id.Hex(), "", &f.Id.Time(), feed, false); err != nil {
 				return
 			}
 		}
-		cp.UpdateId(id, bson.M{"$set": bson.M{"numfeeds": len(result.Result.Feeds.Feeds)}})
+		numfeeds = len(result.Result.Feeds.Feeds)
 		return
 	}
 
+	indexer := conn.NewBulkIndexer(10)
+	indexer.Start()
+	defer indexer.Stop()
+
 	for _, p := range result.Result.Publications {
 		glog.Infof("PUB  %s", p.Id.Hex())
-		err = cp.Insert(types.Pub{
+		numfeeds := 0
+		if numfeeds, err = pubFeeds(p.Id, indexer); err != nil {
+			return
+		}
+		pub := &types.Pub{
 			Id:          p.Id,
 			Name:        p.Title,
 			Homepage:    p.Url,
 			NumReaders:  p.NumReaders,
+			NumFeeds:    numfeeds,
 			LastUpdate:  p.Updated,
 			XPathAuthor: p.XPaths.Author,
 			XPathBody:   p.XPaths.Body,
 			XPathDate:   p.XPaths.Date,
 			XPathTitle:  p.XPaths.Title,
-		})
-		if err != nil {
-			return
 		}
-		if err = pubFeeds(p.Id); err != nil {
+		if err = indexer.Index(index, "pub", p.Id.Hex(), "", &p.Id.Time(), pub, false); err != nil {
 			return
 		}
 	}
