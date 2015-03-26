@@ -106,6 +106,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 		Mappings: bson.M{
 			"pub": bson.M{
 				"properties": bson.M{
+					"PubId":       bson.M{"type": "string", "index": "not_analyzed"},
 					"Name":        bson.M{"type": "string", "index": "analyzed"},
 					"Homepage":    bson.M{"type": "string", "index": "no"},
 					"Description": bson.M{"type": "string", "index": "analyzed"},
@@ -122,6 +123,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 			},
 			"feed": bson.M{
 				"properties": bson.M{
+					"FeedId":       bson.M{"type": "string", "index": "not_analyzed"},
 					"PubId":        bson.M{"type": "string", "index": "not_analyzed"},
 					"MetabaseId":   bson.M{"type": "long"},
 					"Url":          bson.M{"type": "string", "index": "not_analyzed"},
@@ -133,7 +135,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 			},
 			"article": bson.M{
 				"properties": bson.M{
-					"Id":           bson.M{"type": "string", "index": "not_analyzed"},
+					"ArticleId":    bson.M{"type": "string", "index": "not_analyzed"},
 					"FeedId":       bson.M{"type": "string", "index": "not_analyzed"},
 					"PubId":        bson.M{"type": "string", "index": "not_analyzed"},
 					"BatchId":      bson.M{"type": "string", "index": "not_analyzed"},
