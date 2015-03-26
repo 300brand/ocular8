@@ -163,11 +163,6 @@
 					"desc":    "How often to run, parsed by time.ParseDuration"
 				},
 				{
-					"key":     "topic",
-					"default": "article.id.elastic",
-					"desc":    "Topic to post article IDs to"
-				},
-				{
 					"key":     "apikey",
 					"default": "",
 					"desc":    "Metabase API Key"
