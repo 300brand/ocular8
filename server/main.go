@@ -56,7 +56,7 @@ func main() {
 	if !*noweb {
 		ch := make(chan bool)
 		stopMux = append(stopMux, ch)
-		go startWeb(config.WebListen(), config.AssetsDir(), config.Mongo(), ch)
+		go startWeb(config.WebListen(), config.AssetsDir(), ch)
 	}
 
 	// Start handlers
