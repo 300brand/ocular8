@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"github.com/mattbaird/elastigo/lib"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"github.com/300brand/ocular8/types"
 	goetcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -25,11 +25,8 @@ var (
 	cacheHit      int
 	cacheMiss     int
 	canRun        int64
-	db            *mgo.Database
-	dsn           string
+	es            = elastigo.NewConn()
 	etcdUrl       = flag.String("etcd", "http://localhost:4001", "Etcd URL")
-	nsqTopic      string
-	nsqURL        *url.URL
 	parentCache   = make(map[int64][2]bson.ObjectId)
 	sequenceId    string
 	sequenceReset time.Duration
@@ -37,12 +34,9 @@ var (
 )
 
 func setConfigs() (err error) {
-	var nsqhttp, reset string
+	var reset string
 	client := etcd.New(*etcdUrl)
 	err = client.GetAll(map[string]*string{
-		"/config/mongo":                    &dsn,
-		"/config/nsqhttp":                  &nsqhttp,
-		"/handlers/metabase/topic":         &nsqTopic,
 		"/handlers/metabase/apikey":        &apikey,
 		"/handlers/metabase/sequenceid":    &sequenceId,
 		"/handlers/metabase/sequencereset": &reset,
@@ -50,12 +44,10 @@ func setConfigs() (err error) {
 	if err != nil {
 		return
 	}
-	if nsqURL, err = url.Parse(nsqhttp); err != nil {
-		return
-	}
 	if sequenceReset, err = time.ParseDuration(reset); err != nil {
 		return
 	}
+	es.SetHosts(config.ElasticHosts())
 	// Check to see if running attribute has expired. If it has, we can
 	// continue, otherwise we'll have to exit now and wait
 	runKey := "/handlers/metabase/running"
@@ -85,9 +77,15 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 	}
 
 	cacheMiss++
+	query := bson.M{
+		"query": bson.M{
+			"MetabaseId": a.Source.Feed.Id,
+		},
+	}
+	result, err := es.Search(index, "feed", nil, query)
 	feed := new(types.Feed)
+
 	feedQ := bson.M{"metabaseid": a.Source.Feed.Id}
-	feedSel := bson.M{"pubid": 1}
 	err = db.C("feeds").Find(feedQ).Select(feedSel).One(feed)
 	if err == mgo.ErrNotFound {
 		pub := &types.Pub{
@@ -174,13 +172,6 @@ func main() {
 	if err := setConfigs(); err != nil {
 		glog.Fatalf("setConfigs(): %s", err)
 	}
-
-	s, err := mgo.Dial(dsn)
-	if err != nil {
-		glog.Fatalf("mgo.Dial(%s): %s", dsn, err)
-	}
-	defer s.Close()
-	db = s.DB("")
 
 	var result *metabase.Response
 	if filename := *backfill; filename != "" {
