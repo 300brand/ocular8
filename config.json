@@ -17,7 +17,7 @@
 		},
 		{
 			"key":     "mysqldsn",
-			"default": "root@mysql(localhost:3307)/ocular8",
+			"default": "root@tcp(localhost:3307)/ocular8",
 			"desc":    "Connection string to MongoDB"
 		},
 		{
