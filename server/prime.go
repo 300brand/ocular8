@@ -69,8 +69,40 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 	conn.SetHosts(elasticHosts)
 
 	settings := struct {
+		Aliases  bson.M `json:"aliases"`
 		Mappings bson.M `json:"mappings"`
 	}{
+		Aliases: bson.M{
+			"nextdownload": bson.M{
+				"filter": bson.M{
+					"and": []bson.M{
+						bson.M{
+							"not": bson.M{
+								"exists": bson.M{
+									"field": "MetabaseId",
+								},
+							},
+						},
+						bson.M{
+							"or": []bson.M{
+								bson.M{
+									"term": bson.M{
+										"NextDownload": "0001-01-01T00:00:00Z",
+									},
+								},
+								bson.M{
+									"range": bson.M{
+										"NextDownload": bson.M{
+											"gte": "now",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		Mappings: bson.M{
 			"pub": bson.M{
 				"properties": bson.M{
