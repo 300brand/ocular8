@@ -12,7 +12,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -30,20 +29,28 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 
 	creates := []string{
 		`CREATE TABLE IF NOT EXISTS processing (
-			id          SERIAL PRIMARY KEY,
-			article_id  CHAR(24) NOT NULL UNIQUE,
-			feed_id     CHAR(24) NOT NULL INDEX,
-			pub_id      CHAR(24) NOT NULL INDEX,
+			id          SERIAL,
+			            PRIMARY KEY (id),
+			article_id  CHAR(24) NOT NULL,
+			            UNIQUE (article_id),
+			feed_id     CHAR(24) NOT NULL,
+			            INDEX (feed_id),
+			pub_id      CHAR(24) NOT NULL,
+			            INDEX (pub_id),
 			queue       VARCHAR(64),
 			data        MEDIUMBLOB,
 			started     DATETIME(6),
 			last_action TIMESTAMP(6)
 		)`,
 		`CREATE TABLE IF NOT EXISTS errors (
-			id          SERIAL PRIMARY KEY,
-			article_id  CHAR(24) NOT NULL INDEX,
-			feed_id     CHAR(24) NOT NULL INDEX,
-			pub_id      CHAR(24) NOT NULL INDEX,
+			id          SERIAL,
+			            PRIMARY KEY (id),
+			article_id  CHAR(24) NOT NULL,
+			            INDEX (article_id),
+			feed_id     CHAR(24) NOT NULL,
+			            INDEX (feed_id),
+			pub_id      CHAR(24) NOT NULL,
+			            INDEX (pub_id),
 			queue       VARCHAR(64),
 			data        MEDIUMBLOB,
 			started     DATETIME(6),
@@ -111,13 +118,6 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 			},
 		},
 	}
-	resp, err := conn.CreateIndexWithSettings(index, settings)
-	if err != nil {
-		return
-	}
-	glog.Infof("CreateIndexWithSettings: %+v", resp)
-	return
-}
 
 	if _, err = conn.CreateIndexWithSettings(index, settings); err != nil {
 		return
@@ -217,7 +217,8 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 				PubId: id,
 				Url:   f.Url,
 			}
-			if indexer.Index(index, "feed", f.Id.Hex(), "", &f.Id.Time(), feed, false); err != nil {
+			t := f.Id.Time()
+			if indexer.Index(index, "feed", f.Id.Hex(), "", &t, feed, false); err != nil {
 				return
 			}
 		}
@@ -247,7 +248,8 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 			XPathDate:   p.XPaths.Date,
 			XPathTitle:  p.XPaths.Title,
 		}
-		if err = indexer.Index(index, "pub", p.Id.Hex(), "", &p.Id.Time(), pub, false); err != nil {
+		t := p.Id.Time()
+		if err = indexer.Index(index, "pub", p.Id.Hex(), "", &t, pub, false); err != nil {
 			return
 		}
 	}
