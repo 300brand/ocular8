@@ -100,7 +100,6 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 		feed.Id = bson.NewObjectId()
 		feed.MetabaseId = a.Source.Feed.Id
 		feed.PubId = pub.Id
-		feed.Ignore = true
 		feed.Url = fmt.Sprintf("http://ocular8.com/feed/%d.xml", a.Source.Feed.Id)
 		if err = db.C("feeds").Insert(feed); err != nil {
 			return
