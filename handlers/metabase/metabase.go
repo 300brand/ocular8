@@ -37,7 +37,6 @@ func setConfigs() (err error) {
 	client := etcd.New(config.Etcd())
 	err = client.GetAll(map[string]*string{
 		"/handlers/metabase/apikey":        &apikey,
-		"/handlers/metabase/sequenceid":    &sequenceId,
 		"/handlers/metabase/sequencereset": &reset,
 	})
 	if err != nil {
@@ -52,12 +51,12 @@ func setConfigs() (err error) {
 	// Check to see if running attribute has expired. If it has, we can
 	// continue, otherwise we'll have to exit now and wait
 	runKey := "/handlers/metabase/running"
-	resp, err := client.Client.Get(runKey, false, false)
+	resp, err := client.Get(runKey, false, false)
 	if e, ok := err.(*goetcd.EtcdError); ok {
 		if e.ErrorCode == 100 {
 			glog.Info("No running key, we can run!")
 			err = nil
-			_, err = client.Client.Set(runKey, "1", 30)
+			_, err = client.Set(runKey, "1", 30)
 		}
 	} else if err != nil {
 		// Not just a "key not found" err..
@@ -65,6 +64,19 @@ func setConfigs() (err error) {
 	} else {
 		// Still running, inform how long until we can run again
 		canRun = resp.Node.TTL
+	}
+	// Pull out the sequence ID  separately since it's not managed in
+	// config.json
+	sidKey := "/handlers/metabase/sequenceid"
+	resp, err = client.Get(sidKey, false, false)
+	if e, ok := err.(*goetcd.EtcdError); ok {
+		if e.ErrorCode == 100 {
+			// key not found, not an error, this is just the first time running
+			err = nil
+		}
+	} else if err != nil {
+		// Not just a "key not found" err..
+		return
 	}
 	return
 }
