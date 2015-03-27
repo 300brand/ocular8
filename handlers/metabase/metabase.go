@@ -1,21 +1,21 @@
 package main
 
 import (
-	"encoding/xml"
 	"flag"
 	"fmt"
-	"github.com/mattbaird/elastigo/lib"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/300brand/ocular8/lib/metabase"
 	"github.com/300brand/ocular8/types"
 	goetcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
+	"github.com/mattbaird/elastigo/lib"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -151,17 +151,6 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 
 func fromAPI() (response *metabase.Response, err error) {
 	response, err = metabase.Fetch(apikey, sequenceId, *store)
-	return
-}
-
-func fromFile(filename string) (response *metabase.Response, err error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	response = new(metabase.Response)
-	err = xml.NewDecoder(f).Decode(response)
 	return
 }
 
