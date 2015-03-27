@@ -28,14 +28,13 @@ var (
 	sequenceReset time.Duration
 
 	es          = elastigo.NewConn()
-	etcdUrl     = flag.String("etcd", "http://localhost:4001", "Etcd URL")
 	parentCache = make(map[int64][2]bson.ObjectId)
 	store       = flag.String("store", "", "Store a copy of results")
 )
 
 func setConfigs() (err error) {
 	var reset string
-	client := etcd.New(*etcdUrl)
+	client := etcd.New(config.Etcd())
 	err = client.GetAll(map[string]*string{
 		"/handlers/metabase/apikey":        &apikey,
 		"/handlers/metabase/sequenceid":    &sequenceId,
@@ -192,7 +191,7 @@ func main() {
 	if id := result.NewSequenceId(); id != "" {
 		glog.Infof("New SequenceId: %s", id)
 		ttl := uint64(sequenceReset.Seconds())
-		if _, err := etcd.New(*etcdUrl).Set("/handlers/metabase/sequenceid", id, ttl); err != nil {
+		if _, err := etcd.New(config.Etcd()).Set("/handlers/metabase/sequenceid", id, ttl); err != nil {
 			glog.Fatal(err)
 		}
 	}
@@ -206,7 +205,7 @@ func main() {
 	}
 	glog.Infof("saveArticles batch %s cache hit %d miss %d", batchId.Hex(), cacheHit, cacheMiss)
 
-	if _, err = etcd.New(*etcdUrl).Set("/handlers/metabase/lastrun", time.Now().Format(time.RFC3339), 0); err != nil {
+	if _, err = etcd.New(config.Etcd()).Set("/handlers/metabase/lastrun", time.Now().Format(time.RFC3339), 0); err != nil {
 		glog.Fatal(err)
 	}
 }
