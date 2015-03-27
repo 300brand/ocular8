@@ -8,6 +8,7 @@ import (
 
 type Pub struct {
 	Id          bson.ObjectId `bson:"_id" json:"PubId"`
+	MetabaseId  int64         `bson:",omitempty" json:",omitempty"`
 	Name        string
 	Homepage    string
 	Description string
@@ -19,7 +20,7 @@ type Pub struct {
 	XPathDate   []string `bson:",omitempty" json:",omitempty"`
 	XPathTitle  []string `bson:",omitempty" json:",omitempty"`
 	LastUpdate  time.Time
-	NeedsReview bool
+	Added       time.Time
 }
 
 type Feed struct {
@@ -28,6 +29,7 @@ type Feed struct {
 	MetabaseId   int64 `bson:",omitempty" json:",omitempty"`
 	Url          string
 	NumArticles  int
+	Added        time.Time
 	LastDownload time.Time `json:",omitempty"`
 	NextDownload time.Time `json:",omitempty"`
 }
@@ -46,6 +48,7 @@ type Article struct {
 	HTML         []byte
 	LoadTime     time.Duration
 	IsLexisNexis bool
+	Added        time.Time
 	Entry        *Entry    `bson:",omitempty" json:",omitempty"`
 	Goose        *Goose    `bson:",omitempty" json:",omitempty"`
 	Metabase     *Metabase `bson:",omitempty" json:",omitempty"`
