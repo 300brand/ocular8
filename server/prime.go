@@ -107,6 +107,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 			"pub": bson.M{
 				"properties": bson.M{
 					"PubId":       bson.M{"type": "string", "index": "not_analyzed"},
+					"MetabaseId":  bson.M{"type": "long"},
 					"Name":        bson.M{"type": "string", "index": "analyzed"},
 					"Homepage":    bson.M{"type": "string", "index": "no"},
 					"Description": bson.M{"type": "string", "index": "analyzed"},
@@ -118,7 +119,8 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 					"XPathDate":   bson.M{"type": "string", "index": "no"},
 					"XPathTitle":  bson.M{"type": "string", "index": "no"},
 					"LastUpdate":  bson.M{"type": "date"},
-					"NeedsReview": bson.M{"type": "boolean"},
+					"Added":       bson.M{"type": "date"},
+					"IsNew":       bson.M{"type": "boolean"},
 				},
 			},
 			"feed": bson.M{
@@ -128,9 +130,9 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 					"MetabaseId":   bson.M{"type": "long"},
 					"Url":          bson.M{"type": "string", "index": "not_analyzed"},
 					"NumArticles":  bson.M{"type": "integer"},
+					"Added":        bson.M{"type": "date"},
 					"LastDownload": bson.M{"type": "date"},
 					"NextDownload": bson.M{"type": "date"},
-					"Ignore":       bson.M{"type": "boolean"},
 				},
 			},
 			"article": bson.M{
@@ -148,6 +150,10 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 					"HTML":         bson.M{"type": "string", "index": "no"},
 					"LoadTime":     bson.M{"type": "long"},
 					"IsLexisNexis": bson.M{"type": "boolean"},
+					"Added":        bson.M{"type": "date"},
+					"Entry":        bson.M{"type": "object", "enabled": false},
+					"Goose":        bson.M{"type": "object", "enabled": false},
+					"Metabase":     bson.M{"type": "object", "enabled": false},
 				},
 			},
 		},
