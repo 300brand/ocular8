@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -24,12 +22,15 @@ var (
 	cacheHit      int
 	cacheMiss     int
 	canRun        int64
-	es            = elastigo.NewConn()
-	etcdUrl       = flag.String("etcd", "http://localhost:4001", "Etcd URL")
-	parentCache   = make(map[int64][2]bson.ObjectId)
+	index         string
+	indexer       *elastigo.BulkIndexer
 	sequenceId    string
 	sequenceReset time.Duration
-	store         = flag.String("store", "", "Store a copy of results")
+
+	es          = elastigo.NewConn()
+	etcdUrl     = flag.String("etcd", "http://localhost:4001", "Etcd URL")
+	parentCache = make(map[int64][2]bson.ObjectId)
+	store       = flag.String("store", "", "Store a copy of results")
 )
 
 func setConfigs() (err error) {
@@ -46,7 +47,9 @@ func setConfigs() (err error) {
 	if sequenceReset, err = time.ParseDuration(reset); err != nil {
 		return
 	}
+	index = config.ElasticIndex()
 	es.SetHosts(config.ElasticHosts())
+	indexer = es.NewBulkIndexer(4)
 	// Check to see if running attribute has expired. If it has, we can
 	// continue, otherwise we'll have to exit now and wait
 	runKey := "/handlers/metabase/running"
@@ -75,33 +78,39 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 		return
 	}
 
+	// Need to make a new feed and pub
 	cacheMiss++
 	query := bson.M{
+		"size": 1,
 		"query": bson.M{
-			"MetabaseId": a.Source.Feed.Id,
+			"term": bson.M{
+				"MetabaseId": a.Source.Feed.Id,
+			},
 		},
 	}
 	result, err := es.Search(index, "feed", nil, query)
+	if err != nil {
+		return
+	}
 	feed := new(types.Feed)
-
-	feedQ := bson.M{"metabaseid": a.Source.Feed.Id}
-	err = db.C("feeds").Find(feedQ).Select(feedSel).One(feed)
-	if err == mgo.ErrNotFound {
+	if result.Hits.Len() == 0 {
 		pub := &types.Pub{
 			Id:          bson.NewObjectId(),
 			Name:        a.Source.Feed.Name,
 			Description: a.Source.Feed.Description,
 			NumFeeds:    1,
-			NeedsReview: true,
+			MetabaseId:  a.Source.Feed.Id,
+			Added:       time.Now(),
 		}
 		feed.Id = bson.NewObjectId()
 		feed.MetabaseId = a.Source.Feed.Id
 		feed.PubId = pub.Id
 		feed.Url = fmt.Sprintf("http://ocular8.com/feed/%d.xml", a.Source.Feed.Id)
-		if err = db.C("feeds").Insert(feed); err != nil {
+		feed.Added = time.Now()
+		if err = indexer.Index(index, "pub", pub.Id.Hex(), "", &pub.Added, pub, false); err != nil {
 			return
 		}
-		if err = db.C("pubs").Insert(pub); err != nil {
+		if err = indexer.Index(index, "feed", feed.Id.Hex(), "", &feed.Added, feed, false); err != nil {
 			return
 		}
 	}
@@ -115,7 +124,6 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 
 func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 	batchId = bson.NewObjectId()
-	docs := make([]interface{}, 0, len(r.Articles))
 	for i := range r.Articles {
 		ra := &r.Articles[i]
 		author := ra.Author.Name
@@ -132,6 +140,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 			BodyHTML:     ra.ContentWithMarkup,
 			HTML:         ra.XML(),
 			IsLexisNexis: true,
+			Added:        time.Now(),
 			Metabase: &types.Metabase{
 				Author:        author,
 				AuthorHomeUrl: ra.Author.HomeUrl,
@@ -143,21 +152,20 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 		if a.PubId, a.FeedId, err = parents(ra); err != nil {
 			return
 		}
-		docs = append(docs, a)
+		now := time.Now()
+		if err = indexer.Index(index, "article", a.Id.Hex(), "", &now, a, false); err != nil {
+			return
+		}
 	}
-	err = db.C("articles").Insert(docs...)
-	return
-}
-
-func fromAPI() (response *metabase.Response, err error) {
-	response, err = metabase.Fetch(apikey, sequenceId, *store)
 	return
 }
 
 func main() {
+	var err error
+
 	flag.Parse()
 
-	if err := setConfigs(); err != nil {
+	if err = setConfigs(); err != nil {
 		glog.Fatalf("setConfigs(): %s", err)
 	}
 
@@ -172,7 +180,7 @@ func main() {
 	}
 
 	var result *metabase.Response
-	if result, err = fromAPI(); err != nil {
+	if result, err = metabase.Fetch(apikey, sequenceId, *store); err != nil {
 		glog.Fatalf("fromAPI: %s", err)
 	}
 
@@ -189,21 +197,14 @@ func main() {
 		}
 	}
 
+	indexer.Start()
+	defer indexer.Stop()
+
 	batchId, err := saveArticles(result)
 	if err != nil {
 		glog.Fatalf("saveArticles: %s", err)
 	}
-	glog.Infof("saveArticles cache hit %d miss %d", cacheHit, cacheMiss)
-
-	body := strings.NewReader(batchId.Hex())
-	bodyType := "multipart/form-data"
-
-	nsqURL.Path = "/pub"
-	nsqURL.RawQuery = (url.Values{"topic": []string{nsqTopic}}).Encode()
-	if _, err := http.Post(nsqURL.String(), bodyType, body); err != nil {
-		glog.Fatalf("http.Post(%s): %s", nsqURL.String(), err)
-	}
-	glog.Infof("Sent %s to %s", batchId.Hex(), nsqURL)
+	glog.Infof("saveArticles batch %s cache hit %d miss %d", batchId.Hex(), cacheHit, cacheMiss)
 
 	if _, err = etcd.New(*etcdUrl).Set("/handlers/metabase/lastrun", time.Now().Format(time.RFC3339), 0); err != nil {
 		glog.Fatal(err)
