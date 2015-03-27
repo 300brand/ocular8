@@ -162,7 +162,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 func main() {
 	var err error
 
-	flag.Parse()
+	config.Parse()
 
 	if err = setConfigs(); err != nil {
 		glog.Fatalf("setConfigs(): %s", err)
