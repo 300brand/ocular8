@@ -21,7 +21,6 @@ import (
 
 var (
 	apikey        string
-	backfill      = flag.String("backfill", "", "Backfill saved XML")
 	cacheHit      int
 	cacheMiss     int
 	canRun        int64
@@ -173,24 +172,19 @@ func main() {
 		glog.Fatalf("setConfigs(): %s", err)
 	}
 
-	var result *metabase.Response
-	if filename := *backfill; filename != "" {
-		if result, err = fromFile(filename); err != nil {
-			glog.Fatalf("fromFile(%s): %s", filename, err)
-		}
-	} else {
-		if apikey == "" {
-			glog.Errorf("API Key undefined. Please provide key in /handlers/metabase/apikey")
-			os.Exit(2)
-		}
+	if apikey == "" {
+		glog.Errorf("API Key undefined. Please provide key in /handlers/metabase/apikey")
+		os.Exit(2)
+	}
 
-		if canRun > 0 {
-			glog.Warningf("Already running, will be able to run in %s", time.Duration(canRun)*time.Second)
-			return
-		}
-		if result, err = fromAPI(); err != nil {
-			glog.Fatalf("fromAPI: %s", err)
-		}
+	if canRun > 0 {
+		glog.Warningf("Already running, will be able to run in %s", time.Duration(canRun)*time.Second)
+		return
+	}
+
+	var result *metabase.Response
+	if result, err = fromAPI(); err != nil {
+		glog.Fatalf("fromAPI: %s", err)
 	}
 
 	if len(result.Articles) == 0 {
@@ -198,7 +192,7 @@ func main() {
 		return
 	}
 
-	if id := result.NewSequenceId(); *backfill == "" && id != "" {
+	if id := result.NewSequenceId(); id != "" {
 		glog.Infof("New SequenceId: %s", id)
 		ttl := uint64(sequenceReset.Seconds())
 		if _, err := etcd.New(*etcdUrl).Set("/handlers/metabase/sequenceid", id, ttl); err != nil {
