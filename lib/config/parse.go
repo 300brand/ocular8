@@ -7,32 +7,37 @@ import (
 	"path/filepath"
 
 	"github.com/300brand/ocular8/lib/etcd"
-	goetcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
 )
 
 var (
 	flagEtcd       = flag.String("etcd", "http://localhost:4001", "Etcd server address")
-	flagConfigjson = flag.String("configjson", "./config.json", "Path to config.json. Only necessary on initial setup.")
+	flagConfigjson = flag.String("configjson", "", "Path to config.json. Only necessary on initial setup.")
 )
 
 func Parse() (err error) {
 	flag.Parse()
 
+	glog.Infof("flagEtcd: %s", *flagEtcd)
 	client := etcd.New(*flagEtcd)
-	configjson := *flagConfigjson
-	resp, err := client.Get("/config/configjson", false, false)
-	if e, ok := err.(*goetcd.EtcdError); ok && e.ErrorCode == 100 {
-		err = nil
-	}
-	if err != nil {
-		return
-	}
-	if resp != nil {
-		configjson = resp.Node.Value
+
+	if f := *flagConfigjson; f != "" {
+		if err = fromFile(f); err != nil {
+			return
+		}
+		if err = setDefaults(client); err != nil {
+			glog.Errorf("setDefaults: %s", err)
+			return
+		}
+	} else {
+		watchAll(client)
 	}
 
-	f, err := os.Open(configjson)
+	return
+}
+
+func fromFile(filename string) (err error) {
+	f, err := os.Open(filename)
 	if err != nil {
 		return
 	}
@@ -40,11 +45,6 @@ func Parse() (err error) {
 	if err = json.NewDecoder(f).Decode(&Data); err != nil {
 		return
 	}
-
-	if err = setDefaults(client); err != nil {
-		return
-	}
-
 	return
 }
 
@@ -60,6 +60,12 @@ func setDefaults(c *etcd.Client) (err error) {
 			Key:     "active",
 			Default: "false",
 			Desc:    "Whether handler is active - valid values are 'true' or 'false'",
+		})
+		cmd, _ := json.Marshal(Data.Handlers[h].Command)
+		Data.Handlers[h].Config = append(Data.Handlers[h].Config, etcd.Item{
+			Key:     "command",
+			Default: string(cmd),
+			Desc:    "Handler command",
 		})
 		prefix := "/handlers/" + Data.Handlers[h].Handler
 		configs := Data.Handlers[h].Config
@@ -82,6 +88,16 @@ func setItem(c *etcd.Client, prefix string, item *etcd.Item, watch bool) (err er
 		go watchItem(c, key, item)
 	}
 	return
+}
+
+func watchAll(c *etcd.Client) {
+	list, err := c.GetList()
+	if err != nil {
+		glog.Fatalf("etcd.Client.GetList(): %s", err)
+	}
+	for _, item := range list {
+		go watchItem(c, item.Key, item)
+	}
 }
 
 func watchItem(c *etcd.Client, key string, item *etcd.Item) {
