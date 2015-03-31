@@ -34,15 +34,18 @@ var (
 
 func setConfigs() (err error) {
 	var reset string
+	glog.Infof("config.Etcd(): %s", config.Etcd())
 	client := etcd.New(config.Etcd())
 	err = client.GetAll(map[string]*string{
 		"/handlers/metabase/apikey":        &apikey,
 		"/handlers/metabase/sequencereset": &reset,
 	})
 	if err != nil {
+		glog.Errorf("Err: %s", err)
 		return
 	}
 	if sequenceReset, err = time.ParseDuration(reset); err != nil {
+		glog.Errorf("Err: %s", err)
 		return
 	}
 	index = config.ElasticIndex()
@@ -60,6 +63,7 @@ func setConfigs() (err error) {
 		}
 	} else if err != nil {
 		// Not just a "key not found" err..
+		glog.Errorf("Err: %s", err)
 		return
 	} else {
 		// Still running, inform how long until we can run again
@@ -76,6 +80,7 @@ func setConfigs() (err error) {
 		}
 	} else if err != nil {
 		// Not just a "key not found" err..
+		glog.Errorf("Err: %s", err)
 		return
 	}
 	return
@@ -174,7 +179,9 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 func main() {
 	var err error
 
-	config.Parse()
+	if err = config.Parse(); err != nil {
+		glog.Fatalf("config.Parse: %s", err)
+	}
 
 	if err = setConfigs(); err != nil {
 		glog.Fatalf("setConfigs(): %s", err)
