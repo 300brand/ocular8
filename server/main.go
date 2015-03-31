@@ -16,7 +16,7 @@ var (
 	nohandler = flag.Bool("nohandler", false, "Don't start handlers")
 )
 
-func startHandlers(handlerCfg []config.HandlerConfig, stop chan bool) {
+func startHandlers(handlerCfg []*config.HandlerConfig, stop chan bool) {
 	if err := Handlers(handlerCfg, stop); err != nil {
 		glog.Fatalf("Handlers(): %s", err)
 	}
