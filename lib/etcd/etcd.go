@@ -7,6 +7,7 @@ import (
 
 type Item struct {
 	Key     string
+	Path    string
 	Default string
 	Desc    string
 	Value   string
@@ -66,7 +67,8 @@ func (c *Client) GetList() (items []*Item, err error) {
 		}
 
 		item := &Item{
-			Key:   nodes[i].Key,
+			Key:   filepath.Base(nodes[i].Key),
+			Path:  nodes[i].Key,
 			Value: nodes[i].Value,
 		}
 		items = append(items, item)
