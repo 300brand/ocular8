@@ -143,6 +143,16 @@ var Data Config = Config{
 					Default: "30s",
 					Desc:    "How often to run, parsed by time.ParseDuration",
 				},
+				&etcd.Item{
+					Key:     "limit",
+					Default: "25",
+					Desc:    "How many feeds per batch",
+				},
+				&etcd.Item{
+					Key:     "threshold",
+					Default: "100",
+					Desc:    "Max number of feeds allowed in queue",
+				},
 			},
 		},
 		&HandlerConfig{
