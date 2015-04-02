@@ -77,9 +77,10 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	out, err := handler(ctx)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if err == mgo.ErrNotFound {
-			status = http.StatusNotFound
-		}
+		glog.Errorf("TODO: Determine 404 from err: %+v", err)
+		// if err == mgo.ErrNotFound {
+		// 	status = http.StatusNotFound
+		// }
 		h.writeError(w, status, err)
 		return
 	}

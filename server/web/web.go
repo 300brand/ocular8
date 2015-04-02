@@ -9,6 +9,8 @@ import (
 	"github.com/golang/glog"
 )
 
+func Close() {}
+
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
 	assetsApp := filepath.Join(AssetsDir, "app")
 	appDir, err := filepath.Abs(assetsApp)
