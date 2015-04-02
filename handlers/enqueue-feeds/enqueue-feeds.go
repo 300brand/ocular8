@@ -3,32 +3,63 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 
+	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/golang/glog"
-	"gopkg.in/mgo.v2"
+	"github.com/mattbaird/elastigo/lib"
 	"gopkg.in/mgo.v2/bson"
 )
 
 var (
-	etcdUrl    = flag.String("etcd", "http://localhost:4001", "Etcd URL")
-	dsn        string
-	nsqURL     *url.URL
-	LIMIT      int
-	THRESHOLD  int
-	TOPIC      string
-	FEED_TOPIC string
+	dsn       string
+	nsqURL    *url.URL
+	LIMIT     int
+	THRESHOLD int
+	TOPIC     string
 )
 
-var (
-	nsqURLURL *url.URL
-)
+var query = `{
+	"_source": false,
+	"query": {
+		"filtered": {
+			"query": {
+				"match_all": {}
+			},
+			"filter": {
+				"and": [
+					{
+						"not": {
+							"exists": {
+								"field": "MetabaseId"
+							}
+						}
+					},
+					{
+						"or": [
+							{
+								"term": {
+									"NextDownload": "0001-01-01T00:00:00Z"
+								}
+							},
+							{
+								"range": {
+									"NextDownload": {
+										"gte": "now"
+									}
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}`
 
 func checkStats() (err error) {
 	nsqURL.RawQuery = (url.Values{"format": []string{"json"}}).Encode()
@@ -56,7 +87,7 @@ func checkStats() (err error) {
 
 	for _, topic := range stats.Data.Topics {
 		switch topic.Name {
-		case TOPIC, FEED_TOPIC:
+		case TOPIC:
 			// keep processing
 		default:
 			continue
@@ -85,20 +116,17 @@ func checkStats() (err error) {
 }
 
 func setConfigs() (err error) {
-	var nsqhttp, limit, threshold string
-	client := etcd.New(*etcdUrl)
+	var limit, threshold string
+	client := etcd.New(config.Etcd())
 	err = client.GetAll(map[string]*string{
-		"/config/mongo":                     &dsn,
-		"/config/nsqhttp":                   &nsqhttp,
 		"/handlers/enqueue-feeds/limit":     &limit,
 		"/handlers/enqueue-feeds/threshold": &threshold,
-		"/handlers/enqueue-feeds/topic":     &TOPIC,
-		"/handlers/download-feed/topic":     &FEED_TOPIC,
+		"/handlers/download-feed/consume":   &TOPIC,
 	})
 	if err != nil {
 		return
 	}
-	if nsqURL, err = url.Parse(nsqhttp); err != nil {
+	if nsqURL, err = url.Parse(config.Nsqhttp()); err != nil {
 		return
 	}
 	if LIMIT, err = strconv.Atoi(limit); err != nil {
@@ -111,7 +139,7 @@ func setConfigs() (err error) {
 }
 
 func main() {
-	flag.Parse()
+	config.Parse()
 
 	if err := setConfigs(); err != nil {
 		glog.Fatalf("setConfigs: %s", err)
@@ -123,41 +151,27 @@ func main() {
 		return
 	}
 
-	glog.Infof("About to mgo.Dial")
-	s, err := mgo.Dial(dsn)
+	conn := elastigo.NewConn()
+	conn.SetHosts(config.ElasticHosts())
+	args := bson.M{
+		"size": LIMIT,
+		"from": 0,
+	}
+
+	result, err := conn.Search(config.ElasticIndex(), "feed", args, query)
 	if err != nil {
-		glog.Fatalf("mgo.Dial(%s): %s", dsn, err)
+		glog.Fatalf("ElasticSearch.Search: %s", err)
 	}
-	defer s.Close()
 
-	query := bson.M{
-		"$or": []bson.M{
-			bson.M{
-				"nextdownload": bson.M{
-					"$lt": time.Now(),
-				},
-			},
-			bson.M{
-				"nextdownload": bson.M{
-					"$exists": false,
-				},
-			},
-		},
-	}
-	sel := bson.M{"_id": true}
-	sort := "lastdownload"
-	ids := make([]struct {
-		Id bson.ObjectId `bson:"_id"`
-	}, 0, LIMIT)
-
-	if err = s.DB("").C("feeds").Find(query).Limit(LIMIT).Select(sel).Sort(sort).All(&ids); err != nil {
-		glog.Fatalf("mgo.Find: %s", err)
+	ids := make([]bson.ObjectId, 0, LIMIT)
+	for _, hit := range result.Hits.Hits {
+		ids = append(ids, bson.ObjectIdHex(hit.Id))
 	}
 
 	payload := make([]byte, 0, len(ids)*25)
 	for _, id := range ids {
-		glog.Infof("ID: %s", id.Id.Hex())
-		payload = append(payload, []byte(id.Id.Hex())...)
+		glog.Infof("ID: %s", id.Hex())
+		payload = append(payload, []byte(id.Hex())...)
 		payload = append(payload, '\n')
 	}
 	body := bytes.NewReader(payload)
