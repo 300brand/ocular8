@@ -80,7 +80,7 @@ def process(es, index, db, rawfeed):
 			'data':        json.dumps(entry),
 		}
 		cursor.execute(stmt, data)
-		if cursor.lastrowid is None:
+		if cursor.lastrowid is None or cursor.lastrowid == 0:
 			logging.info('%s Duplicate link: %s', prefix, entry['link'])
 			continue
 
@@ -90,7 +90,6 @@ def process(es, index, db, rawfeed):
 
 	db.commit()
 	cursor.close()
-	logging.info('%s IDs: %s', prefix, ids)
 	# Send IDs back so process isn't doing so many things
 	return ids
 
