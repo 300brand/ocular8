@@ -5,14 +5,16 @@ import datetime
 import elasticsearch
 import etcd
 import feedparser
+import json
 import logging
+import mysql.connector
 import time
 import urllib.parse
 import urllib.request
 
 logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
 
-def process(es, index, rawfeed):
+def process(es, index, db, rawfeed):
 	feed = rawfeed['_source']
 	prefix = 'P:%s F:%s' % (feed['PubId'], feed['FeedId'])
 
@@ -54,22 +56,41 @@ def process(es, index, rawfeed):
 		return
 
 	ids = []
+	cursor = db.cursor()
+	stmt = (
+		"INSERT IGNORE INTO processing "
+		"(article_id, feed_id, pub_id, link, data, started) "
+		"VALUES "
+		"(%(article_id)s, %(feed_id)s, %(pub_id)s, %(link)s, %(data)s, CURRENT_TIMESTAMP)"
+	)
 	for entry in doc.entries:
 		if 'link' not in entry:
 			logging.error('%s No link field in entry', prefix)
 			continue
 
-		if es.entries.find_one({ 'link': entry['link'] }) is not None:
-			logging.warning('%s URL not unique: %s', prefix, entry['link'])
+		entry['ArticleId'] = str(bson.objectid.ObjectId())
+		entry['FeedId'] = str(feed['FeedId'])
+		entry['PubId'] = str(feed['PubId'])
+
+		data = {
+			'article_id':  entry['ArticleId'],
+			'feed_id':     entry['FeedId'],
+			'pub_id':      entry['PubId'],
+			'link':        entry['link'],
+			'data':        json.dumps(entry),
+		}
+		cursor.execute(stmt, data)
+		if cursor.lastrowid is None:
+			logging.info('%s Duplicate link: %s', prefix, entry['link'])
 			continue
 
-		entry['ArticleId'] = bson.objectid.ObjectId()
-		entry['FeedId'] = feed['FeedId']
-		entry['PubId'] = feed['PubId']
-		logging.info('%s E:%s New entry', prefix, entry['_id'])
+		logging.info('%s E:%s New entry', prefix, entry['ArticleId'])
 
-		
-		ids.append(str(entry['_id']))
+		ids.append(str(entry['ArticleId']))
+
+	db.commit()
+	cursor.close()
+	logging.info('%s IDs: %s', prefix, ids)
 	# Send IDs back so process isn't doing so many things
 	return ids
 
@@ -93,10 +114,12 @@ def main():
 	client = etcd.Client(host=url.hostname, port=url.port)
 	config_elastic = client.get('/config/elastichosts').value.split(",")
 	config_index   = client.get('/config/elasticindex').value
+	config_mysql   = json.loads(client.get('/config/mysqlobj').value)
 	config_nsqhttp = client.get('/config/nsqhttp').value
 	config_topic   = client.get('/handlers/download-entry/consume').value
 
 	es = elasticsearch.Elasticsearch(hosts=config_elastic)
+	db = mysql.connector.connect(**config_mysql)
 
 	entry_ids = []
 	for id in args.id:
@@ -106,11 +129,11 @@ def main():
 
 		try:
 			feed = es.get(index=config_index, doc_type='feed', id=id)
-			entry_ids += process(es, config_index, feed)
-			return
+			entry_ids += process(es, config_index, db, feed)
 		except elasticsearch.exceptions.NotFoundError:
 			logging.error('No feed found for %s', id)
 
+	db.close()
 	send_ids(config_nsqhttp, config_topic, entry_ids)
 
 if __name__ == '__main__':
