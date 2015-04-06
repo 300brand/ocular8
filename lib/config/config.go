@@ -100,6 +100,11 @@ var Data Config = Config{
 					Default: "1",
 					Desc:    "How many instances can run concurrently",
 				},
+				&etcd.Item{
+					Key:     "sizelimit",
+					Default: "2097152",
+					Desc:    "Maximum number of bytes to download for any HTML page",
+				},
 			},
 		},
 		&HandlerConfig{
