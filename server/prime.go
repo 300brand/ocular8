@@ -53,6 +53,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 			            INDEX (feed_id),
 			pub_id      CHAR(24) NOT NULL,
 			            INDEX (pub_id),
+			link        VARCHAR(255),
 			queue       VARCHAR(64),
 			data        MEDIUMBLOB,
 			started     DATETIME(6),
