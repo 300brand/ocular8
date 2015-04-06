@@ -2,25 +2,29 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/300brand/ocular8/lib/etcd"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/300brand/ocular8/lib/config"
+	"github.com/300brand/ocular8/lib/etcd"
 	"github.com/300brand/ocular8/types"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
 type Entry struct {
-	Id        bson.ObjectId `bson:"_id"`
+	ArticleId bson.ObjectId
 	FeedId    bson.ObjectId
 	PubId     bson.ObjectId
 	Link      string
@@ -30,19 +34,17 @@ type Entry struct {
 }
 
 var (
-	etcdUrl   = flag.String("etcd", "http://localhost:4001", "Etcd URL")
-	dsn       string
 	TOPIC     string
 	SIZELIMIT int
 )
 
 var (
-	db     *mgo.Database
+	db     *sql.DB
 	nsqURL *url.URL
 )
 
 func process(entry *Entry) (err error) {
-	prefix := fmt.Sprintf("P:%s F:%s E:%s", entry.PubId.Hex(), entry.FeedId.Hex(), entry.Id.Hex())
+	prefix := fmt.Sprintf("P:%s F:%s A:%s", entry.PubId.Hex(), entry.FeedId.Hex(), entry.ArticleId.Hex())
 	start := time.Now()
 
 	clean, resp, err := Clean(entry.Link)
@@ -56,12 +58,13 @@ func process(entry *Entry) (err error) {
 	}
 
 	a := &types.Article{
-		Id:     entry.Id,
+		Id:     entry.ArticleId,
 		FeedId: entry.FeedId,
 		PubId:  entry.PubId,
 		Url:    clean,
 		Author: entry.Author,
 		Title:  entry.Title,
+		Entry:  new(types.Entry),
 	}
 
 	limitReader := io.LimitReader(resp.Body, int64(SIZELIMIT))
@@ -87,15 +90,18 @@ func process(entry *Entry) (err error) {
 	a.Entry.Published = a.Published
 	a.LoadTime = time.Since(start)
 
-	glog.Infof("%s Moving to articles collection", prefix)
-	if err = db.C("articles").Insert(a); err != nil {
+	glog.Infof("%s Updating data", prefix)
+
+	data, err := json.Marshal(a)
+	if err != nil {
 		return
 	}
-	if err = db.C("entries").RemoveId(entry.Id); err != nil {
+	_, err = db.Exec(`UPDATE processing SET queue = ?, data = ? WHERE article_id = ?`, TOPIC, data, a.Id.Hex())
+	if err != nil {
 		return
 	}
 
-	payload := bytes.NewBufferString(entry.Id.Hex())
+	payload := bytes.NewBufferString(entry.ArticleId.Hex())
 	if _, err = http.Post(nsqURL.String(), "multipart/form-data", payload); err != nil {
 		return
 	}
@@ -115,20 +121,20 @@ func invalidContentType(ct string) (invalid bool) {
 }
 
 func setConfigs() (err error) {
-	var nsqhttp, sizelimit string
-	client := etcd.New(*etcdUrl)
+	var sizelimit string
+	client := etcd.New(config.Etcd())
 	err = client.GetAll(map[string]*string{
-		"/config/mongo":                      &dsn,
-		"/config/nsqhttp":                    &nsqhttp,
 		"/handlers/download-entry/sizelimit": &sizelimit,
-		"/handlers/download-entry/topic":     &TOPIC,
+		"/handlers/extract-goose/consume":    &TOPIC,
 	})
 	if err != nil {
 		return
 	}
-	if nsqURL, err = url.Parse(nsqhttp); err != nil {
+	if nsqURL, err = url.Parse(config.Nsqhttp()); err != nil {
 		return
 	}
+	nsqURL.Path = "/pub"
+	nsqURL.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
 	if SIZELIMIT, err = strconv.Atoi(sizelimit); err != nil {
 		return
 	}
@@ -136,47 +142,58 @@ func setConfigs() (err error) {
 }
 
 func main() {
-	flag.Parse()
+	var err error
+	config.Parse()
 
-	if err := setConfigs(); err != nil {
+	if err = setConfigs(); err != nil {
 		glog.Fatalf("setConfigs(): %s", err)
 	}
 
-	nsqURL.Path = "/pub"
-	nsqURL.RawQuery = (url.Values{"topic": []string{TOPIC}}).Encode()
-
-	s, err := mgo.Dial(dsn)
+	db, err = sql.Open("mysql", config.MysqlDSN())
 	if err != nil {
-		glog.Fatalf("mgo.Dial(%s): %s", dsn, err)
+		return
 	}
-	defer s.Close()
-	db = s.DB("")
 
-	change := mgo.Change{
-		Update:    bson.M{"$inc": bson.M{"attempts": 1}},
-		ReturnNew: false,
+	ids := make([]interface{}, flag.NArg())
+	for i := range ids {
+		ids[i] = interface{}(flag.Arg(i))
 	}
-	for _, id := range flag.Args() {
-		if !bson.IsObjectIdHex(id) {
-			glog.Fatalf("Invalid BSON ObjectId: %s", id)
-		}
 
-		q := bson.M{"_id": bson.ObjectIdHex(id)}
-		entry := new(Entry)
-		if _, err := db.C("entries").Find(q).Apply(change, entry); err != nil {
-			glog.Errorf("Find(%+v): %s", q, err)
+	glog.Infoln(`SELECT id, data
+		FROM processing
+		WHERE article_id IN(` + strings.Repeat(",?", flag.NArg())[1:] + `)`)
+
+	rows, err := db.Query(`
+		SELECT id, data
+		FROM processing
+		WHERE article_id IN(`+strings.Repeat(",?", flag.NArg())[1:]+`)`,
+		ids...,
+	)
+	if err != nil {
+		glog.Fatalf("db.Query(): %s", err)
+	}
+	for rows.Next() {
+		glog.Infof("Row")
+		var id uint64
+		data := make([]byte, 0, 16777216)
+		if err = rows.Scan(&id, &data); err != nil {
+			glog.Errorf("rows.Scan(): %s", err)
 			continue
 		}
-		if err := process(entry); err != nil {
-			glog.Errorf("process(%s): %s", entry.Id.Hex(), err)
-			// TODO switch the error type
-			db.C("article_errors").Insert(bson.M{
-				"url":    entry.Link,
-				"type":   fmt.Sprintf("%T", err),
-				"code":   0,
-				"reason": err.Error(),
-				"entry":  entry,
-			})
+		entry := new(Entry)
+		if err = json.Unmarshal(data, entry); err != nil {
+			glog.Errorf("json.Unmarshal(): %s", err)
+			continue
+		}
+		if err = process(entry); err != nil {
+			glog.Errorf("process(%s): %s", entry.ArticleId, err)
+			db.Exec(`INSERT INTO errors
+				(article_id, feed_id, pub_id, link, queue, data, started, last_action, reason)
+				SELECT article_id, feed_id, pub_id, link, queue, data, started, last_action, ? AS reason
+				FROM processing
+				WHERE id = ?
+				LIMIT 1
+			`, err.Error(), id)
 		}
 	}
 }
