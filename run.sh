@@ -27,11 +27,11 @@ function clean {
 
 function pydeps {
 	for R in ${ROOT}/handlers/*/requirements2.txt; do
-		python2 -m pip install --user --requirement $R
+		python2 -m pip install --user --requirement $R --allow-external mysql-connector-python
 	done
 
 	for R in ${ROOT}/handlers/*/requirements3.txt; do
-		python3 -m pip install --user --requirement $R
+		python3 -m pip install --user --requirement $R --allow-external mysql-connector-python
 	done
 
 	( \
