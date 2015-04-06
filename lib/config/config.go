@@ -42,7 +42,12 @@ var Data Config = Config{
 		&etcd.Item{
 			Key:     "mysqldsn",
 			Default: "root@tcp(localhost:3307)/ocular8",
-			Desc:    "Connection string to MongoDB",
+			Desc:    "DSN Connection string to MySQL",
+		},
+		&etcd.Item{
+			Key:     "mysqlobj",
+			Default: `{ "user": "root", "password": "", "host": "localhost", "port": 3307, "database": "ocular8" }`,
+			Desc:    "Connection object to MySQL",
 		},
 		&etcd.Item{
 			Key:     "nsqhttp",
@@ -63,11 +68,6 @@ var Data Config = Config{
 			Key:     "nsqlookuptcp",
 			Default: "localhost:4160",
 			Desc:    "NSQLookupd TCP address",
-		},
-		&etcd.Item{
-			Key:     "configjson",
-			Default: "./config.json",
-			Desc:    "Path to config.json",
 		},
 		&etcd.Item{
 			Key:     "handlers",
