@@ -1,3 +1,4 @@
+elasticsearch>=1.0.0,<2.0.0
 lxml==3.4.1
 mysql-connector-python
 python-dateutil==2.4.0
