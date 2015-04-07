@@ -1,5 +1,5 @@
 elasticsearch>=1.0.0,<2.0.0
+mysql-connector-python
 pymongo==2.8
 python-etcd==0.3.2
 -e git+https://github.com/kurtmckee/feedparser@dc3bd29bfc1b245159aa893a7426e99a5fb3402d#egg=feedparser
-mysql-connector-python
