@@ -33,7 +33,6 @@ def process(db, article_id):
 		return False
 
 	prefix = 'P:%s F:%s A:%s' % (article['PubId'], article['FeedId'], article['ArticleId'])
-	print(article)
 
 	if 'HTML' not in article or article['HTML'] is None or len(article['HTML']) == 0:
 		logging.error('%s No HTML', prefix)
