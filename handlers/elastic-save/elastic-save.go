@@ -47,16 +47,23 @@ func main() {
 	var article types.Article
 	for _, id := range ids {
 		row := db.QueryRow(`SELECT id, data FROM processing WHERE article_id = ?`, id)
-		if err = row.Scan(&processing_id, &data); err != nil {
+		err = row.Scan(&processing_id, &data)
+		if err == sql.ErrNoRows {
+			glog.Warningf("No processing record found for %s", id)
+			continue
+		}
+		if err != nil {
 			glog.Fatalf("row.Scan(): %s", err)
 		}
-		glog.Infof("data: %s", data)
 		if err = json.Unmarshal(data, &article); err != nil {
 			glog.Fatalf("json.Unmarshal(): %s", err)
 		}
-		glog.Infof("article: %+v", article)
 		if _, err = conn.Index(config.ElasticIndex(), "article", id, nil, &article); err != nil {
 			glog.Fatalf("elasticsearch.Index(): %s", err)
+		}
+		_, err = db.Exec(`DELETE FROM processing WHERE id = ? LIMIT 1`, processing_id)
+		if err != nil {
+			glog.Fatalf("DELETE: %s", err)
 		}
 	}
 }
