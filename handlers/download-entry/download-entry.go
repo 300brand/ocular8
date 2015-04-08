@@ -87,7 +87,7 @@ func process(entry *Entry) (err error) {
 	a.Entry.Url = entry.Link
 	a.Entry.Title = entry.Title
 	a.Entry.Author = entry.Author
-	a.Entry.Published = a.Published
+	a.Entry.Published = &a.Published
 	a.LoadTime = time.Since(start)
 
 	glog.Infof("%s Updating data", prefix)
