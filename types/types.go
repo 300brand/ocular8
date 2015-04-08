@@ -52,6 +52,7 @@ type Article struct {
 	Entry        *Entry    `bson:",omitempty" json:",omitempty"`
 	Goose        *Goose    `bson:",omitempty" json:",omitempty"`
 	Metabase     *Metabase `bson:",omitempty" json:",omitempty"`
+	XPath        *XPath    `bson:",omitempty" json:",omitempty"`
 }
 
 type ElasticArticle struct {
@@ -79,6 +80,12 @@ type Goose struct {
 	Title     string
 	Published time.Time
 	Authors   []string
+}
+
+type XPath struct {
+	Title     string
+	Published time.Time
+	Author    string
 }
 
 type Metabase struct {
