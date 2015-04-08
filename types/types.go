@@ -55,36 +55,23 @@ type Article struct {
 	XPath        *XPath    `bson:",omitempty" json:",omitempty"`
 }
 
-type ElasticArticle struct {
-	ArticleId       bson.ObjectId `bson:"_id"`
-	PublicationId   bson.ObjectId `bson:"pubid"`
-	FeedId          bson.ObjectId `bson:"feedid"`
-	Title           string        `bson:"title"`
-	Author          string        `bson:"author"`
-	Body            string        `bson:"bodytext"`
-	URL             string        `bson:"url"`
-	PublicationName string        `bson:"-"`
-	Published       time.Time     `bson:"published"`
-	IsLexisNexis    bool          `bson:"islexisnexis"`
-}
-
 type Entry struct {
 	Url       string
 	Title     string
 	Author    string
-	Published time.Time
+	Published *time.Time
 }
 
 type Goose struct {
 	BodyXPath string
 	Title     string
-	Published time.Time
+	Published *time.Time
 	Authors   []string
 }
 
 type XPath struct {
 	Title     string
-	Published time.Time
+	Published *time.Time
 	Author    string
 }
 
