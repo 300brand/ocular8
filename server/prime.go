@@ -157,6 +157,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 					"Entry":        bson.M{"type": "object", "enabled": false},
 					"Goose":        bson.M{"type": "object", "enabled": false},
 					"Metabase":     bson.M{"type": "object", "enabled": false},
+					"XPath":        bson.M{"type": "object", "enabled": false},
 				},
 			},
 		},
