@@ -2,35 +2,55 @@
 import argparse
 import bson
 import dateutil.parser
+import elasticsearch
 import etcd
+import json
 import logging
 import lxml.etree
-import pymongo
+import mysql.connector
 import urllib.parse
 import urllib.request
 
+
+STMT_SELECT = "SELECT data FROM processing WHERE article_id = %(article_id)s LIMIT 1"
+STMT_UPDATE = "UPDATE processing SET data = %(data)s WHERE article_id = %(article_id)s LIMIT 1"
+
 logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
 
-def process(db, pub, article, prefix):
-	if 'html' not in article or article['html'] is None or len(article['html']) == 0:
+def process(db, es, index, article_id):
+	cursor = db.cursor()
+	cursor.execute(STMT_SELECT, { 'article_id': article_id })
+	row = cursor.fetchone()
+	article = json.loads(row[0].decode('utf-8'))
+	prefix = 'P:%s F:%s A:%s' % (article['PubId'], article['FeedId'], article['ArticleId'])
+
+	if 'HTML' not in article or article['HTML'] is None or len(article['HTML']) == 0:
 		logging.error('%s No HTML', prefix)
 		return False
 
+	rawpubpub = es.get(index=index, doc_type='pub', id=article['PubId'])
+	if rawpubpub is None:
+		logger.error('No pub found for %s', article['PubId'])
+		return
+
+	pub = rawpubpub['_source']
 	extracted = []
 
-	if len(pub['xpathauthor']) > 0:
-		logging.debug('%s XPath Author: %d', prefix, len(pub['xpathauthor']))
-		if not extracted.append(('author', extract(article, pub['xpathauthor']))):
-			logging.warning('%s Nothing found for Author', prefix)
+	if 'XPathAuthor' in pub:
+		v = extract(article, pub['XPathAuthor'])
+		logging.warning('%s XPath Author: %r', prefix, v is not None)
+		if v is not None:
+			extracted.append(('Author', v))
 
-	if ('bodytext' not in article or article['bodytext'] is None or article['bodytext'] == '') and len(pub['xpathbody']) > 0:
-		logging.debug('%s XPath Body: %d', prefix, len(pub['xpathbody']))
-		if not extracted.append(('bodytext', extract(article, pub['xpathbody']))):
-			logging.warning('%s Nothing found for Body', prefix)
+	if ('BodyText' not in article or len(article['BodyText']) == 0) and 'XPathBody' in pub:
+		v = extract(article, pub['XPathBody'])
+		logging.debug('%s XPath Body: %r', prefix, v is not None)
+		if v is not None:
+			extracted.append(('BodyText', v))
 
-	if len(pub['xpathdate']) > 0:
-		logging.debug('%s XPath Published: %d', prefix, len(pub['xpathdate']))
-		v = extract(article, pub['xpathdate'])
+	if 'XPathDate' in pub:
+		v = extract(article, pub['XPathDate'])
+		logging.debug('%s XPath Published: %r', prefix, v is not None)
 		if v is not None:
 			try:
 				v = dateutil.parser.parse(v)
@@ -38,33 +58,39 @@ def process(db, pub, article, prefix):
 				logging.warning('%s Could not dateutil.parser.parse "%s"', prefix, v)
 			except Exception as err:
 				logging.error('%s Unexpected Exception: %s', prefix, err)
+			extracted.append(('Published', v))
 
-		if not extracted.append(('published', v)):
-			logging.warning('%s Nothing found for Published', prefix)
+	if 'XPathTitle' in pub:
+		v = extract(article, pub['XPathTitle'])
+		logging.debug('%s XPath Title: %r', prefix, v is not None)
+		if v is not None:
+			extracted.append(('Title', v))
 
-	if len(pub['xpathtitle']) > 0:
-		logging.debug('%s XPath Title: %d', prefix, len(pub['xpathtitle']))
-		if not extracted.append(('title', extract(article, pub['xpathtitle']))):
-			logging.warning('%s Nothing found for Title', prefix)
-
-	update = {
-		'$set': {
-			'xpath': {}
-		}
-	}
-
+	# Re-apply extracted contents to article object
+	article['XPath'] = {}
 	for e in extracted:
 		(k, v) = e
-		update['$set']['xpath'][k] = v
-		update['$set'][k] = v
+		article[k] = v
+		if k == 'BodyText':
+			# Squash BodyHTML if BodyText is found, may need to go back and
+			# include the DOM element in extract's return
+			article['BodyHTML'] = ''
+			continue
+		article['xpath'][k] = v
 
-	db.articles.update({'_id': article['_id']}, update)
+	cursor.execute(STMT_UPDATE, { 'article_id': article_id, 'data': json.dumps(article) })
+
+	db.commit()
+	cursor.close()
 
 	return True
 
 def extract(article, xpaths):
+	if len(xpaths) == 0:
+		return None
+
 	parser = lxml.etree.HTMLParser()
-	tree = lxml.etree.fromstring(article['html'], parser)
+	tree = lxml.etree.fromstring(article['HTML'], parser)
 	remove = []
 	search = []
 	for xpath in xpaths:
@@ -92,6 +118,15 @@ def extract(article, xpaths):
 
 	return None
 
+def nsq_id(nsqhttp, topic, id):
+	payload = id.encode('utf-8')
+	nsqurl = '%s/pub?topic=%s' % (nsqhttp, topic)
+	try:
+		urllib.request.urlopen(nsqurl, data=payload)
+	except Exception as err:
+		logging.error('Error while sending data to %s: %s', nsqurl, err)
+	else:
+		logging.info('Sent to %s', topic)
 
 def main():
 	parser = argparse.ArgumentParser(description='Extract meta info and content from articles using XPath')
@@ -101,45 +136,21 @@ def main():
 
 	url = urllib.parse.urlsplit(args.etcd)
 	client = etcd.Client(host=url.hostname, port=url.port)
-	config_mongo = client.get('/config/mongo').value
+	config_elastic = client.get('/config/elastichosts').value.split(",")
+	config_index   = client.get('/config/elasticindex').value
+	config_mysql   = json.loads(client.get('/config/mysqlobj').value)
 	config_nsqhttp = client.get('/config/nsqhttp').value
+	config_topic   = client.get('/handlers/elastic-save/consume').value
 
-	db = pymongo.MongoClient(config_mongo).get_default_database()
-	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
-	for id in bson_ids:
-		article = db.articles.find_one(id)
-		if article is None:
-			logging.error('%s Article not found', id)
+	es = elasticsearch.Elasticsearch(hosts=config_elastic)
+	db = mysql.connector.connect(**config_mysql)
+
+	for id in args.id:
+		if not process(db, es, config_index, id):
 			continue
+		nsq_id(config_nsqhttp, config_topic, id)
 
-		prefix = 'P:%s F:%s A:%s' % (article['pubid'], article['feedid'], article['_id'])
-
-		q = {
-			'_id': article['pubid'],
-			'$or': [
-				{ 'xpathauthor': { '$not': { '$size': 0 } } },
-				{ 'xpathbody':   { '$not': { '$size': 0 } } },
-				{ 'xpathdate':   { '$not': { '$size': 0 } } },
-				{ 'xpathtitle':  { '$not': { '$size': 0 } } }
-			]
-		}
-		pub = db.pubs.find_one(q)
-		if pub is None:
-			logging.error('%s Pub not found', prefix)
-			continue
-
-		if not process(db, pub, article, prefix):
-			continue
-
-		payload = str(article['_id']).encode('utf-8')
-		topic = 'article.id.elastic'
-		nsqurl = '%s/pub?topic=%s' % (config_nsqhttp, topic)
-		try:
-			urllib.request.urlopen(nsqurl, data=payload)
-		except Exception as err:
-			logging.error('%s Error while sending data to %s: %s', prefix, nsqurl, err)
-		else:
-			logging.info('%s Sent to %s', prefix, topic)
+	db.close()
 
 if __name__ == "__main__":
 	main()
