@@ -141,7 +141,7 @@ var Data Config = Config{
 		},
 		&HandlerConfig{
 			Handler: "enqueue-feeds",
-			Command: []string{"./enqueue-feeds", "-etcd", "{{ .Config.Etcd }}"},
+			Command: []string{"./enqueue-feeds", "-etcd", "{{ .Etcd }}"},
 			Config: []*etcd.Item{
 				&etcd.Item{
 					Key:     "frequency",
