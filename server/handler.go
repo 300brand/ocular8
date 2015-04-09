@@ -13,12 +13,12 @@ import (
 
 const MinFrequency = 10 * time.Second
 
-func Handlers(handlers []config.HandlerConfig, stopChan chan bool) (err error) {
+func Handlers(handlers []*config.HandlerConfig, stopChan chan bool) (err error) {
 	glog.Infof("Handlers: %+v", handlers)
 
 	stopChans := make([]chan bool, 0, len(handlers))
 	for i := range handlers {
-		cfg := &handlers[i]
+		cfg := handlers[i]
 		if cfg.IsConsumer() {
 			ch := make(chan bool)
 			go Consumer(cfg, ch)

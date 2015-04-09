@@ -9,9 +9,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/300brand/ocular8/lib/config"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
-	"gopkg.in/mgo.v2"
+	"github.com/mattbaird/elastigo/lib"
 )
 
 type APIError struct {
@@ -24,7 +25,7 @@ type APIHandler map[string]APIFuncType
 
 type Context struct {
 	Body   io.ReadCloser
-	DB     *mgo.Database
+	Conn   *elastigo.Conn
 	Values url.Values
 	Vars   map[string]string
 	R      *http.Request
@@ -65,20 +66,21 @@ func (h APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := &Context{
 		Body:   r.Body,
-		DB:     mongo.Clone().DB(""),
+		Conn:   elastigo.NewConn(),
 		Values: r.URL.Query(),
 		Vars:   mux.Vars(r),
 		R:      r,
 		W:      w,
 	}
-	defer ctx.DB.Session.Close()
+	ctx.Conn.SetHosts(config.ElasticHosts())
 
 	out, err := handler(ctx)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if err == mgo.ErrNotFound {
-			status = http.StatusNotFound
-		}
+		glog.Errorf("TODO: Determine 404 from err: %+v", err)
+		// if err == mgo.ErrNotFound {
+		// 	status = http.StatusNotFound
+		// }
 		h.writeError(w, status, err)
 		return
 	}

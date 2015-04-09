@@ -16,17 +16,14 @@ var (
 	nohandler = flag.Bool("nohandler", false, "Don't start handlers")
 )
 
-func startHandlers(handlerCfg []config.HandlerConfig, stop chan bool) {
+func startHandlers(handlerCfg []*config.HandlerConfig, stop chan bool) {
 	if err := Handlers(handlerCfg, stop); err != nil {
 		glog.Fatalf("Handlers(): %s", err)
 	}
 	glog.Info("Waiting for handler cleanup")
 }
 
-func startWeb(addr, dir, mongo string, stop chan bool) {
-	if err := web.Mongo(mongo); err != nil {
-		glog.Fatalf("web.Mongo(%s): %s", mongo, err)
-	}
+func startWeb(addr, dir string, stop chan bool) {
 	go func() {
 		if err := http.ListenAndServe(addr, web.Handler(dir)); err != nil {
 			glog.Fatalf("http.ListenAndServe(%s): %s", addr, err)
@@ -44,7 +41,7 @@ func main() {
 	}
 
 	if *doPrime {
-		if err := prime(config.Mongo()); err != nil {
+		if err := prime(config.ElasticHosts(), config.ElasticIndex(), config.MysqlDSN()); err != nil {
 			glog.Fatalf("[prime] %s", err)
 		}
 		return
@@ -59,7 +56,7 @@ func main() {
 	if !*noweb {
 		ch := make(chan bool)
 		stopMux = append(stopMux, ch)
-		go startWeb(config.WebListen(), config.AssetsDir(), config.Mongo(), ch)
+		go startWeb(config.WebListen(), config.AssetsDir(), ch)
 	}
 
 	// Start handlers

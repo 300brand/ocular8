@@ -1,124 +1,69 @@
 package main
 
 import (
+	"database/sql"
+	"encoding/json"
 	"flag"
 	"strings"
-	"time"
 
-	"github.com/300brand/ocular8/lib/etcd"
+	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/types"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	elastic "github.com/mattbaird/elastigo/lib"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-type Pub struct {
-	Id   bson.ObjectId `bson:"_id"`
-	Name string
-}
-
-var (
-	machine = flag.String("etcd", "http://localhost:4001", "Etcd address")
-	dsn     string
-	hosts   string
-)
-
 func main() {
-	flag.Parse()
+	config.Parse()
 
-	client := etcd.New(*machine)
-	err := client.GetAll(map[string]*string{
-		"/config/mongo":   &dsn,
-		"/config/elastic": &hosts,
-	})
+	db, err := sql.Open("mysql", config.MysqlDSN())
 	if err != nil {
-		glog.Fatalf("Could not get configs: %s", err)
+		glog.Fatalf("sql.Open(): %s", err)
 	}
-
-	s, err := mgo.Dial(dsn)
-	if err != nil {
-		glog.Fatalf("mgo.Dial(%s): %s", dsn, err)
-	}
-	defer s.Close()
-	db := s.DB("")
+	defer db.Close()
 
 	conn := elastic.NewConn()
-	conn.SetHosts(strings.Split(hosts, ","))
+	conn.SetHosts(config.ElasticHosts())
 
+	// Sometimes a space separated list of IDs gets quoted
 	args := flag.Args()
 	if len(args) == 1 && strings.Contains(args[0], " ") {
 		args = strings.Split(args[0], " ")
 	}
 
-	ids := make([]bson.ObjectId, 0, len(args))
+	// Filter out any IDs that are not BSON IDs
+	ids := make([]string, 0, len(args))
 	for _, id := range args {
 		if !bson.IsObjectIdHex(id) {
 			glog.Errorf("Invalid BSON ObjectId: %s", id)
 			continue
 		}
-		ids = append(ids, bson.ObjectIdHex(id))
+		ids = append(ids, id)
 	}
 
-	var query bson.M
-	if len(ids) == 1 {
-		query = bson.M{
-			"$or": []bson.M{
-				bson.M{
-					"_id": ids[0],
-				},
-				bson.M{
-					"batchid": ids[0],
-				},
-			},
-		}
-	} else {
-		query = bson.M{
-			"_id": bson.M{
-				"$in": ids,
-			},
-		}
-	}
-	elasticArticles := make([]types.ElasticArticle, 0, len(ids))
-	err = db.C("articles").Find(query).All(&elasticArticles)
-	if err != nil {
-		glog.Fatalf("articles.Find(%d): %s", len(ids), err)
-	}
-
-	pubIds := make([]bson.ObjectId, 0, len(ids))
-	for i := range elasticArticles {
-		pubIds = append(pubIds, elasticArticles[i].PublicationId)
-	}
-	pubs := make([]Pub, 0, len(ids))
-	err = db.C("pubs").Find(bson.M{"_id": bson.M{"$in": pubIds}}).Select(bson.M{"name": 1}).All(&pubs)
-	if err != nil {
-		glog.Fatalf("pubs.Find(%d): %s", len(pubIds), err)
-	}
-
-	pubMap := make(map[bson.ObjectId]string)
-	for i := range pubs {
-		pubMap[pubs[i].Id] = pubs[i].Name
-	}
-
-	bi := conn.NewBulkIndexer(5)
-	bi.Start()
-	for i := range elasticArticles {
-		a := &elasticArticles[i]
-		var ok bool
-		if a.PublicationName, ok = pubMap[a.PublicationId]; !ok {
-			glog.Errorf("[%s] No publication found for %s", a.ArticleId.Hex(), a.PublicationId)
+	var processing_id uint64
+	var data = make([]byte, 0, 16777216)
+	var article types.Article
+	for _, id := range ids {
+		row := db.QueryRow(`SELECT id, data FROM processing WHERE article_id = ?`, id)
+		err = row.Scan(&processing_id, &data)
+		if err == sql.ErrNoRows {
+			glog.Warningf("No processing record found for %s", id)
 			continue
 		}
-		if a.Published.IsZero() {
-			glog.Warningf("[%s] Got zero-published date, setting to Id's timestamp (%s)", a.ArticleId.Hex(), a.ArticleId.Time())
-			a.Published = a.ArticleId.Time()
+		if err != nil {
+			glog.Fatalf("row.Scan(): %s", err)
 		}
-		args := map[string]interface{}{
-			"timestamp": a.ArticleId.Time().Format(time.RFC3339),
+		if err = json.Unmarshal(data, &article); err != nil {
+			glog.Fatalf("json.Unmarshal(): %s", err)
 		}
-		if _, err = conn.Index("articles", "article", a.ArticleId.Hex(), args, a); err != nil {
-			glog.Errorf("[%s] ElasticSearch.Index: %s", a.ArticleId.Hex(), err)
+		if _, err = conn.Index(config.ElasticIndex(), "article", id, nil, &article); err != nil {
+			glog.Fatalf("elasticsearch.Index(): %s", err)
+		}
+		_, err = db.Exec(`DELETE FROM processing WHERE id = ? LIMIT 1`, processing_id)
+		if err != nil {
+			glog.Fatalf("DELETE: %s", err)
 		}
 	}
-	bi.Stop()
 }

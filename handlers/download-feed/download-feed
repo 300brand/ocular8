@@ -2,22 +2,27 @@
 import argparse
 import bson
 import datetime
+import elasticsearch
 import etcd
 import feedparser
+import json
 import logging
-import pymongo
+import mysql.connector
 import time
 import urllib.parse
 import urllib.request
 
 logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
 
-def process(db, feed, nsq):
-	prefix = 'P:%s F:%s' % (feed['pubid'], feed['_id'])
+def process(es, index, db, rawfeed):
+	feed = rawfeed['_source']
+	prefix = 'P:%s F:%s' % (feed['PubId'], feed['FeedId'])
 
+	url = feed.get('Url', '')
 	etag = feed.get('etag', None)
 	modified = feed.get('lastmodified', None)
-	doc = feedparser.parse(feed['url'], etag=etag, modified=modified)
+	logging.info('%s DATA %s %s %s', prefix, url, etag, modified)
+	doc = feedparser.parse(url, etag=etag, modified=modified)
 
 	status = doc.get('status', 500)
 
@@ -27,62 +32,76 @@ def process(db, feed, nsq):
 	if doc['bozo'] == 0:
 		nextdownload = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
 
-	sets = {
+	update = {
 		'bozo':         doc['bozo'],
 		'etag':         doc.get('etag', None),
-		'lastmodified': doc.get('modified', None),
-		'laststatus':   status,
-		'lastdownload': datetime.datetime.utcnow(),
-		'nextdownload': nextdownload
+		'modified': doc.get('modified', None),
+		'status':   status,
+		'LastDownload': datetime.datetime.utcnow(),
+		'NextDownload': nextdownload
 	}
 	if 'updated_parsed' in doc and doc['updated_parsed'] is not None:
 		t = datetime.datetime.utcfromtimestamp(time.mktime(doc['updated_parsed']))
-		sets['updated'] = t
+		update['updated'] = t
 	if status == 301:
-		logging.info('%s Updating feed URL from %s to %s', prefix, feed['url'], doc['href'])
-		sets['originalurl'] = feed['url']
-		sets['url'] = doc['href']
+		logging.info('%s Updating feed URL from %s to %s', prefix, feed['Url'], doc['href'])
+		update['originalurl'] = feed['Url']
+		update['Url'] = doc['href']
 
-	update = {
-		'$set': sets,
-		'$inc': {
-			'downloads': 1
-		}
-	}
-
-	db.feeds.update({ '_id': feed['_id'] }, update)
+	body = { 'doc': update }
+	es.update(index=index, doc_type='feed', id=rawfeed['_id'], body=body, lang='expression')
 
 	if status in [ 304, 410, 500 ]:
 		logging.warning('%s Bailing from bad status: %d', prefix, status)
 		return
 
 	ids = []
+	cursor = db.cursor()
+	stmt = (
+		"INSERT IGNORE INTO processing "
+		"(article_id, feed_id, pub_id, link, data, started) "
+		"VALUES "
+		"(%(article_id)s, %(feed_id)s, %(pub_id)s, %(link)s, %(data)s, CURRENT_TIMESTAMP)"
+	)
 	for entry in doc.entries:
 		if 'link' not in entry:
 			logging.error('%s No link field in entry', prefix)
 			continue
 
-		if db.entries.find_one({ 'link': entry['link'] }) is not None:
-			logging.warning('%s URL not unique: %s', prefix, entry['link'])
+		entry['ArticleId'] = str(bson.objectid.ObjectId())
+		entry['FeedId'] = str(feed['FeedId'])
+		entry['PubId'] = str(feed['PubId'])
+
+		data = {
+			'article_id':  entry['ArticleId'],
+			'feed_id':     entry['FeedId'],
+			'pub_id':      entry['PubId'],
+			'link':        entry['link'],
+			'data':        json.dumps(entry),
+		}
+		cursor.execute(stmt, data)
+		if cursor.lastrowid is None or cursor.lastrowid == 0:
+			logging.info('%s Duplicate link: %s', prefix, entry['link'])
 			continue
 
-		entry['_id'] = bson.objectid.ObjectId()
-		entry['feedid'] = feed['_id']
-		entry['pubid'] = feed['pubid']
-		logging.info('%s E:%s New entry', prefix, entry['_id'])
+		logging.info('%s E:%s New entry', prefix, entry['ArticleId'])
 
-		db.entries.insert(entry)
-		ids.append(str(entry['_id']))
+		ids.append(str(entry['ArticleId']))
 
+	db.commit()
+	cursor.close()
+	# Send IDs back so process isn't doing so many things
+	return ids
+
+def send_ids(nsq, topic, ids):
 	payload = ('\n'.join(ids) + '\n').encode('utf-8')
-	topic = "entry.id.download"
 	nsqurl = "%s/mpub?topic=%s" % (nsq, topic)
 	try:
 		urllib.request.urlopen(nsqurl, data=payload)
 	except Exception as err:
-		logging.error('%s Error while sending data to %s: %s', prefix, nsqurl, err)
+		logging.error('Error while sending data to %s: %s', nsqurl, err)
 	else:
-		logging.info('%s Sent %d new entries to %s', prefix, len(ids), topic)
+		logging.info('Sent %d new entries to %s', len(ids), topic)
 
 def main():
 	parser = argparse.ArgumentParser(description='Download feed and push new URLs into next queue')
@@ -92,15 +111,29 @@ def main():
 
 	url = urllib.parse.urlsplit(args.etcd)
 	client = etcd.Client(host=url.hostname, port=url.port)
-	config_mongo = client.get('/config/mongo').value
+	config_elastic = client.get('/config/elastichosts').value.split(",")
+	config_index   = client.get('/config/elasticindex').value
+	config_mysql   = json.loads(client.get('/config/mysqlobj').value)
 	config_nsqhttp = client.get('/config/nsqhttp').value
+	config_topic   = client.get('/handlers/download-entry/consume').value
 
-	db = pymongo.MongoClient(config_mongo).get_default_database()
+	es = elasticsearch.Elasticsearch(hosts=config_elastic)
+	db = mysql.connector.connect(**config_mysql)
 
-	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
-	feeds = db.feeds.find({ '_id': { '$in': bson_ids } })
-	for feed in feeds:
-		process(db, feed, config_nsqhttp)
+	entry_ids = []
+	for id in args.id:
+		if not bson.objectid.ObjectId.is_valid(id):
+			logging.error('Invalid BSON ObjectId: %s', id)
+			continue
+
+		try:
+			feed = es.get(index=config_index, doc_type='feed', id=id)
+			entry_ids += process(es, config_index, db, feed)
+		except elasticsearch.exceptions.NotFoundError:
+			logging.error('No feed found for %s', id)
+
+	db.close()
+	send_ids(config_nsqhttp, config_topic, entry_ids)
 
 if __name__ == '__main__':
 	main()

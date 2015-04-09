@@ -1,64 +1,116 @@
 #!/usr/bin/env python2
 import argparse
+import base64
 import bson
 import dateutil.parser
+import elasticsearch
 import etcd
 import goose
+import json
 import logging
 import lxml
-import pymongo
+import mysql.connector
 import urllib
 import urlparse
 
+STMT_PUB    = "SELECT pub_id FROM processing WHERE article_id = %(article_id)s LIMIT 1"
+STMT_SELECT = "SELECT data FROM processing WHERE article_id = %(article_id)s LIMIT 1"
+STMT_UPDATE = "UPDATE processing SET data = %(data)s WHERE article_id = %(article_id)s LIMIT 1"
+
 logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
 
-def process(db, article, prefix):
-	if 'html' not in article or article['html'] is None or len(article['html']) == 0:
+def process(db, article_id):
+	cursor = db.cursor()
+	cursor.execute(STMT_SELECT, { 'article_id': article_id })
+	row = cursor.fetchone()
+	if row is None:
+		logging.error('%s Not found', article_id)
+		return False
+
+	article = json.loads(row[0].decode('utf-8'))
+	if article is None:
+		logging.error('%s Could not convert data back to object', article_id)
+		return False
+
+	prefix = 'P:%s F:%s A:%s' % (article['PubId'], article['FeedId'], article['ArticleId'])
+
+	if 'HTML' not in article or article['HTML'] is None or len(article['HTML']) == 0:
 		logging.error('%s No HTML', prefix)
 		return False
 
+	html = base64.b64decode(article['HTML'])
 	g = goose.Goose({
 		'enable_image_fetching':False
 	})
-	a = g.extract(raw_html=article['html'])
+	a = g.extract(raw_html=html)
 
 	if a.cleaned_text != '':
 		logging.debug('%s Goose Body %d', prefix, len(a.cleaned_text))
 
-	bodyhtml = ''
 	bodyxpath = ''
 	if a.top_node is not None:
-		bodyhtml = lxml.etree.tostring(a.top_node, pretty_print=False)
+		article['BodyHTML'] = lxml.etree.tostring(a.top_node, pretty_print=False)
 		bodyxpath = a.doc.getroottree().getpath(a.top_node)
 
-	update = {
-		'$set': {
-			'bodyhtml': bodyhtml,
-			'bodytext': a.cleaned_text,
-			'goose': {
-				'bodyxpath': bodyxpath,
-				'authors': a.authors,
-				'published': a.publish_date,
-				'title': a.title
-			}
-		}
+	article['BodyText'] = a.cleaned_text
+	article['Goose'] = {
+		'BodyXPath': bodyxpath,
+		'Title':     a.title,
+		'Published': a.publish_date,
+		'Authors':   a.authors,
 	}
 
 	if a.title != '':
 		logging.debug('%s Goose Title', prefix)
-		update['$set']['title'] = a.title
+		article['Title'] = a.title
 
 	if len(a.authors) > 0:
 		logging.debug('%s Goose Author', prefix)
-		update['$set']['author'] = a.authors[0]
+		article['Author'] = a.authors[0]
 
 	if a.publish_date is not None:
 		logging.debug('%s Goose Published', prefix)
-		update['$set']['published'] = dateutil.parser.parse(a.publish_date)
+		article['Published'] = dateutil.parser.parse(a.publish_date)
 
-	db.articles.update({ '_id': article['_id'] }, update, multi=False)
+	cursor.execute(STMT_UPDATE, { 'article_id': article_id, 'data': json.dumps(article) })
+
+	db.commit()
+	cursor.close()
 
 	return True
+
+def nsq_id(db, es, index, article_id, nsqhttp, topic_save, topic_xpath):
+	topic = topic_save
+
+	cursor = db.cursor()
+	cursor.execute(STMT_PUB, { 'article_id': article_id })
+	row = cursor.fetchone()
+	if row is None:
+		logger.error('Where did article go? (%s)', article_id)
+		return
+
+	pub_id = row[0]
+	rawpubpub = es.get(index=index, doc_type='pub', id=pub_id)
+	if rawpubpub is None:
+		logger.error('No pub found for %s', pub_id)
+		return
+
+	pub = rawpubpub['_source']
+	hasxpath = False
+	for k in ['XPathBody', 'XPathAuthor', 'XPathDate', 'XPathTitle']:
+		hasxpath |= k in pub and pub[k] is not None and len(pub[k]) > 0
+
+	if hasxpath:
+		topic = topic_xpath
+
+	payload = article_id.encode('utf-8')
+	nsqurl = '%s/pub?topic=%s' % (nsqhttp, topic)
+	try:
+		urllib.urlopen(nsqurl, data=payload)
+	except Exception as err:
+		logging.error('Error while sending data to %s: %s', nsqurl, err)
+	else:
+		logging.info('Sent to %s', topic)
 
 def main():
 	parser = argparse.ArgumentParser(description='Extract meta info and content from articles using Goose')
@@ -68,45 +120,22 @@ def main():
 
 	url = urlparse.urlparse(args.etcd)
 	client = etcd.Client(host=url.hostname, port=url.port)
-	config_mongo = client.get('/config/mongo').value
-	config_nsqhttp = client.get('/config/nsqhttp').value
+	config_elastic     = client.get('/config/elastichosts').value.split(",")
+	config_index       = client.get('/config/elasticindex').value
+	config_mysql       = json.loads(client.get('/config/mysqlobj').value)
+	config_nsqhttp     = client.get('/config/nsqhttp').value
+	config_topic_save  = client.get('/handlers/elastic-save/consume').value
+	config_topic_xpath = client.get('/handlers/extract-xpath/consume').value
 
-	db = pymongo.MongoClient(config_mongo).get_default_database()
-	bson_ids = [ bson.objectid.ObjectId(id) for id in args.id ]
-	for id in bson_ids:
-		article = db.articles.find_one(id)
-		if article is None:
-			logging.error('%s Not found', id)
+	es = elasticsearch.Elasticsearch(hosts=config_elastic)
+	db = mysql.connector.connect(**config_mysql)
+
+	for id in args.id:
+		if not process(db, id):
 			continue
+		nsq_id(db, es, config_index, id, config_nsqhttp, config_topic_save, config_topic_xpath)
 
-		prefix = 'P:%s F:%s A:%s' % (article['pubid'], article['feedid'], article['_id'])
-		if not process(db, article, prefix):
-			continue
-
-		topic = 'article.id.elastic'
-
-		q = {
-			'_id': article['pubid'],
-			'$or': [
-				{ 'xpathauthor': { '$exists': True, '$not': { '$size': 0 } } },
-				{ 'xpathbody':   { '$exists': True, '$not': { '$size': 0 } } },
-				{ 'xpathdate':   { '$exists': True, '$not': { '$size': 0 } } },
-				{ 'xpathtitle':  { '$exists': True, '$not': { '$size': 0 } } }
-			]
-		}
-		pub = db.pubs.find_one(q)
-		if pub is not None:
-			topic = 'article.id.extract.xpath'
-
-		payload = str(article['_id']).encode('utf-8')
-		nsqurl = '%s/pub?topic=%s' % (config_nsqhttp, topic)
-		try:
-			urllib.urlopen(nsqurl, data=payload)
-		except Exception as err:
-			logging.error('%s Error while sending data to %s: %s', prefix, nsqurl, err)
-		else:
-			logging.info('%s Sent to %s', prefix, topic)
-
+	db.close()
 
 if __name__ == '__main__':
 	main()
