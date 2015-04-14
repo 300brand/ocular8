@@ -7,10 +7,10 @@ ROOT=$(dirname $0)
 function build {
 	go get -v github.com/300brand/ocular8/server
 	cp -a $GOPATH/bin/server $ROOT/o8-server
-	HANDLERS=$(go list -f '{{.ImportPath}}^{{.Target}}' github.com/300brand/ocular8/handlers/...)
+	HANDLERS=$(basename --multiple $(dirname $(ls $ROOT/handlers/*/*.go) | sort -u))
 	for HANDLER in $HANDLERS; do
-		IMPORTPATH=$(echo $HANDLER | cut -d^ -f1)
-		TARGET=$(echo $HANDLER | cut -d^ -f2)
+		IMPORTPATH=github.com/300brand/ocular8/handlers/${HANDLER}
+		TARGET=${GOPATH}/bin/${HANDLER}
 		go get -v $IMPORTPATH
 		cp -a $TARGET $GOPATH/src/$IMPORTPATH/
 	done
