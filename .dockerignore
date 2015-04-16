@@ -2,3 +2,9 @@
 .gitignore
 o8-server
 start_containers
+handlers/download-entry/download-entry
+handlers/elastic-save/elastic-save
+handlers/enqueue-feeds/enqueue-feeds
+handlers/metabase/metabase
+handlers/metabase-ln/metabase-ln
+handlers/recount-articles/recount-articles
