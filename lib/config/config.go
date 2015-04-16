@@ -214,6 +214,27 @@ var Data Config = Config{
 			},
 		},
 		&HandlerConfig{
+			Handler: "metabase-ln",
+			Command: []string{"./metabase-ln", "-etcd", "{{ .Etcd }}"},
+			Config: []*etcd.Item{
+				&etcd.Item{
+					Key:     "frequency",
+					Default: "30s",
+					Desc:    "How often to run, parsed by time.ParseDuration",
+				},
+				&etcd.Item{
+					Key:     "apikey",
+					Default: "",
+					Desc:    "Metabase API Key",
+				},
+				&etcd.Item{
+					Key:     "sequencereset",
+					Default: "48h",
+					Desc:    "How long to wait before cutting losses and resetting sequenceId. Used in the event of power/network loss",
+				},
+			},
+		},
+		&HandlerConfig{
 			Handler: "recount-articles",
 			Command: []string{"./recount-articles", "-etcd", "{{ .Etcd }}"},
 			Config: []*etcd.Item{
