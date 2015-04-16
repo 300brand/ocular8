@@ -4,4 +4,5 @@ handlers/elastic-save/elastic-save
 handlers/enqueue-feeds/enqueue-feeds
 handlers/recount-articles/recount-articles
 handlers/metabase/metabase
+handlers/metabase/metabase-ln
 o8-server
