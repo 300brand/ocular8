@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -32,13 +33,17 @@ var (
 	store       = flag.String("store", "", "Store a copy of results")
 )
 
+func name() string {
+	return filepath.Base(os.Args[0])
+}
+
 func setConfigs() (err error) {
 	var reset string
 	glog.Infof("config.Etcd(): %s", config.Etcd())
 	client := etcd.New(config.Etcd())
 	err = client.GetAll(map[string]*string{
-		"/handlers/metabase/apikey":        &apikey,
-		"/handlers/metabase/sequencereset": &reset,
+		"/handlers/" + name() + "/apikey":        &apikey,
+		"/handlers/" + name() + "/sequencereset": &reset,
 	})
 	if err != nil {
 		glog.Errorf("Err: %s", err)
@@ -53,7 +58,7 @@ func setConfigs() (err error) {
 	indexer = es.NewBulkIndexer(4)
 	// Check to see if running attribute has expired. If it has, we can
 	// continue, otherwise we'll have to exit now and wait
-	runKey := "/handlers/metabase/running"
+	runKey := "/handlers/" + name() + "/running"
 	resp, err := client.Get(runKey, false, false)
 	if e, ok := err.(*goetcd.EtcdError); ok {
 		if e.ErrorCode == 100 {
@@ -71,7 +76,7 @@ func setConfigs() (err error) {
 	}
 	// Pull out the sequence ID  separately since it's not managed in
 	// config.json
-	sidKey := "/handlers/metabase/sequenceid"
+	sidKey := "/handlers/" + name() + "/sequenceid"
 	resp, err = client.Get(sidKey, false, false)
 	if e, ok := err.(*goetcd.EtcdError); ok {
 		if e.ErrorCode == 100 {
@@ -188,7 +193,7 @@ func main() {
 	}
 
 	if apikey == "" {
-		glog.Errorf("API Key undefined. Please provide key in /handlers/metabase/apikey")
+		glog.Errorf("API Key undefined. Please provide key in /handlers/" + name() + "/apikey")
 		os.Exit(2)
 	}
 
@@ -210,7 +215,7 @@ func main() {
 	if id := result.NewSequenceId(); id != "" {
 		glog.Infof("New SequenceId: %s", id)
 		ttl := uint64(sequenceReset.Seconds())
-		if _, err := etcd.New(config.Etcd()).Set("/handlers/metabase/sequenceid", id, ttl); err != nil {
+		if _, err := etcd.New(config.Etcd()).Set("/handlers/"+name()+"/sequenceid", id, ttl); err != nil {
 			glog.Fatal(err)
 		}
 	}
@@ -224,7 +229,7 @@ func main() {
 	}
 	glog.Infof("saveArticles batch %s cache hit %d miss %d", batchId.Hex(), cacheHit, cacheMiss)
 
-	if _, err = etcd.New(config.Etcd()).Set("/handlers/metabase/lastrun", time.Now().Format(time.RFC3339), 0); err != nil {
+	if _, err = etcd.New(config.Etcd()).Set("/handlers/"+name()+"/lastrun", time.Now().Format(time.RFC3339), 0); err != nil {
 		glog.Fatal(err)
 	}
 }
