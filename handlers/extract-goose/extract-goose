@@ -70,7 +70,11 @@ def process(db, article_id):
 
 	if a.publish_date is not None:
 		logging.debug('%s Goose Published', prefix)
-		article['Published'] = dateutil.parser.parse(a.publish_date)
+		parsed = dateutil.parser.parse(a.publish_date)
+		# Knock date down to string for JSON encoding
+		article['Published'] = parsed.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+		if parsed.tzinfo is None:
+			article['Published'] += 'Z'
 
 	cursor.execute(STMT_UPDATE, { 'article_id': article_id, 'data': json.dumps(article) })
 
