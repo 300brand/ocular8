@@ -87,6 +87,8 @@ func setConfigs() (err error) {
 		// Not just a "key not found" err..
 		glog.Errorf("Err: %s", err)
 		return
+	} else {
+		sequenceId = resp.Node.Value
 	}
 	return
 }
