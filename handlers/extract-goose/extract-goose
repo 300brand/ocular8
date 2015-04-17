@@ -77,7 +77,7 @@ def process(db, article_id):
 		if tz == '':
 			article['Published'] += 'Z'
 		else:
-			article['Published'] += tz[:3] + ':' + s[3:]
+			article['Published'] += tz[:3] + ':' + tz[3:]
 
 	cursor.execute(STMT_UPDATE, { 'article_id': article_id, 'data': json.dumps(article) })
 
