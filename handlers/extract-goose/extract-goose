@@ -72,9 +72,12 @@ def process(db, article_id):
 		logging.debug('%s Goose Published', prefix)
 		parsed = dateutil.parser.parse(a.publish_date)
 		# Knock date down to string for JSON encoding
-		article['Published'] = parsed.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
-		if parsed.tzinfo is None:
+		article['Published'] = parsed.strftime('%Y-%m-%dT%H:%M:%S.%f')
+		tz = parsed.strftime('%z')
+		if tz == '' or tz == '+0000':
 			article['Published'] += 'Z'
+		else:
+			article['Published'] += tz
 
 	cursor.execute(STMT_UPDATE, { 'article_id': article_id, 'data': json.dumps(article) })
 
