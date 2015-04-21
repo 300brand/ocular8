@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -136,11 +137,18 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 		if err = indexer.Index(index, "feed", feed.Id.Hex(), "", &feed.Added, feed, false); err != nil {
 			return
 		}
-	}
-	if err != nil {
-		return
+	} else {
+		if err = json.Unmarshal(*result.Hits.Hits[0].Source, feed); err != nil {
+			return
+		}
 	}
 	pubId, feedId = feed.PubId, feed.Id
+	if feedId.Hex() == "" {
+		glog.Fatal("FeedId is blank")
+	}
+	if pubId.Hex() == "" {
+		glog.Fatal("PubId is blank")
+	}
 	parentCache[a.Source.Feed.Id] = [2]bson.ObjectId{pubId, feedId}
 	return
 }
