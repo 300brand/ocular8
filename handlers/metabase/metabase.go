@@ -186,6 +186,9 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 		if a.PubId, a.FeedId, err = parents(ra); err != nil {
 			return
 		}
+		if lni := a.Metabase.Lni; lni != "" {
+			a.Url = fmt.Sprintf("http://www.ocular8.com/view/%s", lni)
+		}
 		now := time.Now()
 		if err = indexer.Index(index, "article", a.Id.Hex(), "", &now, a, false); err != nil {
 			return
