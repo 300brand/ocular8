@@ -215,7 +215,7 @@ var Data Config = Config{
 		},
 		&HandlerConfig{
 			Handler: "metabase-ln",
-			Command: []string{"./metabase-ln", "-etcd", "{{ .Etcd }}"},
+			Command: []string{"./metabase-ln", "-lexisnexis", "-etcd", "{{ .Etcd }}"},
 			Config: []*etcd.Item{
 				&etcd.Item{
 					Key:     "frequency",
