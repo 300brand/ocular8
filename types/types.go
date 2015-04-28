@@ -81,4 +81,5 @@ type Metabase struct {
 	AuthorEmail   string
 	SequenceId    string
 	Id            string
+	Lni           string
 }
