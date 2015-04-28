@@ -29,9 +29,10 @@ var (
 	sequenceId    string
 	sequenceReset time.Duration
 
-	es          = elastigo.NewConn()
-	parentCache = make(map[int64][2]bson.ObjectId)
-	store       = flag.String("store", "", "Store a copy of results")
+	es           = elastigo.NewConn()
+	parentCache  = make(map[int64][2]bson.ObjectId)
+	store        = flag.String("store", "", "Store a copy of results")
+	isLexisNexis = flag.Bool("lexisnexis", false, "Data coming in is from LexisNexis")
 )
 
 func name() string {
@@ -160,6 +161,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 		author := ra.Author.Name
 		author = strings.TrimPrefix(author, "By ")
 		author = strings.TrimPrefix(author, "By ") // Some have it twice..
+
 		a := &types.Article{
 			Id:           bson.NewObjectId(),
 			BatchId:      batchId,
@@ -170,7 +172,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 			BodyText:     ra.Content,
 			BodyHTML:     ra.ContentWithMarkup,
 			HTML:         ra.XML(),
-			IsLexisNexis: true,
+			IsLexisNexis: *isLexisNexis,
 			Added:        time.Now(),
 			Metabase: &types.Metabase{
 				Author:        author,
@@ -178,6 +180,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 				AuthorEmail:   ra.Author.Email,
 				SequenceId:    ra.SequenceId,
 				Id:            ra.Id,
+				Lni:           ra.PublishingPlatform.ItemId,
 			},
 		}
 		if a.PubId, a.FeedId, err = parents(ra); err != nil {
