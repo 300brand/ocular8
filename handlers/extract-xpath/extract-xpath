@@ -15,7 +15,7 @@ import urllib.request
 STMT_SELECT = "SELECT data FROM processing WHERE article_id = %(article_id)s LIMIT 1"
 STMT_UPDATE = "UPDATE processing SET data = %(data)s WHERE article_id = %(article_id)s LIMIT 1"
 
-logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.DEBUG)
+logging.basicConfig(format='%(levelname).1s%(asctime)s.%(msecs)06d %(process)7d %(filename)s:%(lineno)d] %(message)s', datefmt='%m%d %H:%M:%S', level=logging.WARNING)
 
 def process(db, es, index, article_id):
 	cursor = db.cursor()
