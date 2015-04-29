@@ -53,17 +53,17 @@ func main() {
 			continue
 		}
 		if err != nil {
-			glog.Fatalf("row.Scan(): %s", err)
+			glog.Fatalf("%s - row.Scan(): %s", id, err)
 		}
 		if err = json.Unmarshal(data, &article); err != nil {
-			glog.Fatalf("json.Unmarshal(): %s", err)
+			glog.Fatalf("%s - json.Unmarshal(): %s", id, err)
 		}
 		if _, err = conn.Index(config.ElasticIndex(), "article", id, nil, &article); err != nil {
-			glog.Fatalf("elasticsearch.Index(): %s", err)
+			glog.Fatalf("%s - elasticsearch.Index(): %s", id, err)
 		}
 		_, err = db.Exec(`DELETE FROM processing WHERE id = ? LIMIT 1`, processing_id)
 		if err != nil {
-			glog.Fatalf("DELETE: %s", err)
+			glog.Fatalf("%s - DELETE: %s", id, err)
 		}
 	}
 }
