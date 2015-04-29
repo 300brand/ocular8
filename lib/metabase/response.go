@@ -336,7 +336,10 @@ func (r Response) NewSequenceId() string {
 func (a Article) Published() (t time.Time) {
 	t, err := time.Parse(time.RFC3339, a.PublishedDate)
 	if err != nil {
-		t, _ = time.Parse(time.RFC3339, a.HarvestDate)
+		t, err = time.Parse(time.RFC3339, a.HarvestDate)
+	}
+	if err != nil {
+		t = time.Now()
 	}
 	return
 }
