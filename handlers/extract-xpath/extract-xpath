@@ -53,7 +53,10 @@ def process(db, es, index, article_id):
 		logging.debug('%s XPath Published: %r', prefix, v is not None)
 		if v is not None:
 			try:
-				v = dateutil.parser.parse(v)
+				parsed = dateutil.parser.parse(v)
+				v = str(parsed).replace(' ', 'T')
+				if parsed.strftime('%z') == '':
+					v += 'Z'
 			except ValueError as err:
 				logging.warning('%s Could not dateutil.parser.parse "%s"', prefix, v)
 			except Exception as err:
@@ -76,7 +79,7 @@ def process(db, es, index, article_id):
 			# include the DOM element in extract's return
 			article['BodyHTML'] = ''
 			continue
-		article['xpath'][k] = v
+		article['XPath'][k] = v
 
 	cursor.execute(STMT_UPDATE, { 'article_id': article_id, 'data': json.dumps(article) })
 
