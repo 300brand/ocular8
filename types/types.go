@@ -76,10 +76,17 @@ type XPath struct {
 }
 
 type Metabase struct {
-	Author        string
-	AuthorHomeUrl string
-	AuthorEmail   string
-	SequenceId    string
-	Id            string
-	Lni           string
+	Author                string
+	AuthorHomeUrl         string
+	AuthorEmail           string
+	SequenceId            string
+	Id                    string
+	Lni                   string
+	PublishedDate         string
+	HarvestDate           string
+	EmbargoDate           string
+	LicenseEndDate        string
+	ContentLicenseEndDate string
+	Url                   string
+	OriginalUrl           string
 }
