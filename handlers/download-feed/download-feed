@@ -128,7 +128,9 @@ def main():
 
 		try:
 			feed = es.get(index=config_index, doc_type='feed', id=id)
-			entry_ids += process(es, config_index, db, feed)
+			new_ids = process(es, config_index, db, feed)
+			if new_ids is not None:
+				entry_ids += new_ids
 		except elasticsearch.exceptions.NotFoundError:
 			logging.error('No feed found for %s', id)
 
