@@ -73,7 +73,7 @@ def process(db, article_id):
 		parsed = dateutil.parser.parse(a.publish_date)
 		# Knock date down to string for JSON encoding
 		article['Published'] = str(parsed).replace(' ', 'T')
-		if tz = parsed.strftime('%z') == '':
+		if parsed.strftime('%z') == '':
 			article['Published'] += 'Z'
 
 	cursor.execute(STMT_UPDATE, { 'article_id': article_id, 'data': json.dumps(article) })
