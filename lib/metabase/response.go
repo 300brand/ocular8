@@ -2,7 +2,6 @@ package metabase
 
 import (
 	"encoding/xml"
-	"github.com/golang/glog"
 	"time"
 )
 
@@ -335,10 +334,7 @@ func (r Response) NewSequenceId() string {
 }
 
 func (a Article) Published() (t time.Time) {
-	t, err := time.Parse(time.RFC3339, a.PublishedDate)
-	if err != nil {
-		glog.Errorf("Article.Published(): %s", err)
-	}
+	t, _ = time.Parse(time.RFC3339, a.PublishedDate)
 	return
 }
 
