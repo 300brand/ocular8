@@ -65,6 +65,7 @@ func process(entry *Entry) (err error) {
 		Author: entry.Author,
 		Title:  entry.Title,
 		Entry:  new(types.Entry),
+		Added:  time.Now(),
 	}
 
 	limitReader := io.LimitReader(resp.Body, int64(SIZELIMIT))
