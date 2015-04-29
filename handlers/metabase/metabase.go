@@ -175,12 +175,19 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 			IsLexisNexis: *isLexisNexis,
 			Added:        time.Now(),
 			Metabase: &types.Metabase{
-				Author:        author,
-				AuthorHomeUrl: ra.Author.HomeUrl,
-				AuthorEmail:   ra.Author.Email,
-				SequenceId:    ra.SequenceId,
-				Id:            ra.Id,
-				Lni:           ra.PublishingPlatform.ItemId,
+				Author:                author,
+				AuthorHomeUrl:         ra.Author.HomeUrl,
+				AuthorEmail:           ra.Author.Email,
+				SequenceId:            ra.SequenceId,
+				Id:                    ra.Id,
+				Lni:                   ra.PublishingPlatform.ItemId,
+				Url:                   ra.Url,
+				OriginalUrl:           ra.OriginalUrl,
+				PublishedDate:         ra.PublishedDate,
+				HarvestDate:           ra.HarvestDate,
+				EmbargoDate:           ra.EmbargoDate,
+				LicenseEndDate:        ra.LicenseEndDate,
+				ContentLicenseEndDate: ra.ContentLicenseEndDate,
 			},
 		}
 		if a.PubId, a.FeedId, err = parents(ra); err != nil {
@@ -188,6 +195,19 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 		}
 		if lni := a.Metabase.Lni; lni != "" {
 			a.Url = fmt.Sprintf("http://www.ocular8.com/view/%s", lni)
+		}
+		if a.Published.IsZero() {
+			glog.Errorf(
+				"A:%s Zero Published (%q) - MetabaseId:%s SequenceId:%s LNI:%s HarvestDate:%q Title:%q Url:%q",
+				a.Id.Hex(),
+				ra.PublishedDate,
+				ra.Id,
+				ra.SequenceId,
+				ra.PublishingPlatform.ItemId,
+				ra.HarvestDate,
+				ra.Title,
+				ra.Url,
+			)
 		}
 		now := time.Now()
 		if err = indexer.Index(index, "article", a.Id.Hex(), "", &now, a, false); err != nil {
