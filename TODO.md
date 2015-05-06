@@ -8,7 +8,7 @@
 - [x] Store phrases and glues in Coverage object
 - [x] Update search page
 - [x] Update search-edit page
-- [ ] Store date range in SQLite search table
+- [x] Store date range in SQLite search table
 - [ ] Update SOV page
 - [ ] Update SOV edit page
 - [ ] Create Fisher Price search query builder
