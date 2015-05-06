@@ -5,12 +5,13 @@
 - [ ] Split all data into chunks for origin (RSS/LexisNexis/WebNews) and create aliases
 
 ## Frontend
-- [ ] Store phrases and glues in Coverage object
-- [ ] Update search page
+- [x] Store phrases and glues in Coverage object
+- [x] Update search page
 - [ ] Update search-edit page
 - [ ] Store date range in SQLite search table
 - [ ] Update SOV page
 - [ ] Update SOV edit page
+- [ ] Create Fisher Price search query builder
 
 ## Backend
 
