@@ -51,7 +51,11 @@ def process(es, index, db, rawfeed):
 	body = { 'doc': update }
 	es.update(index=index, doc_type='feed', id=rawfeed['_id'], body=body, lang='expression')
 
-	if status in [ 304, 410, 500 ]:
+	if status in [ 304 ]:
+		# Shh, don't speak.
+		return
+
+	if status in [ 410, 500 ]:
 		logging.warning('%s Bailing from bad status: %d', prefix, status)
 		return
 
