@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +31,8 @@ var (
 	indexer       *elastigo.BulkIndexer
 	sequenceId    string
 	sequenceReset time.Duration
+	topic         string
+	nsqURL        *url.URL
 
 	es           = elastigo.NewConn()
 	parentCache  = make(map[int64][2]bson.ObjectId)
@@ -46,8 +51,13 @@ func setConfigs() (err error) {
 	err = client.GetAll(map[string]*string{
 		"/handlers/" + name() + "/apikey":        &apikey,
 		"/handlers/" + name() + "/sequencereset": &reset,
+		"/handlers/resolve-url/consume":          &topic,
 	})
 	if err != nil {
+		glog.Errorf("Err: %s", err)
+		return
+	}
+	if nsqURL, err = url.Parse(config.Nsqhttp()); err != nil {
 		glog.Errorf("Err: %s", err)
 		return
 	}
@@ -158,6 +168,7 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 
 func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 	batchId = bson.NewObjectId()
+	articleIds := make([]bson.ObjectId, 0, 500)
 	for i := range r.Articles {
 		ra := &r.Articles[i]
 		author := ra.Author.Name
@@ -215,7 +226,29 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 		if err = indexer.Index(index, "article", a.Id.Hex(), "", &now, a, false); err != nil {
 			return
 		}
+		if a.Metabase.Lni == "" {
+			articleIds = append(articleIds, a.Id)
+		}
 	}
+
+	// Send article ids up for URL resolution
+	if len(articleIds) == 0 {
+		return
+	}
+	payload := make([]byte, 0, len(articleIds)*25)
+	for _, id := range articleIds {
+		payload = append(payload, []byte(id.Hex())...)
+		payload = append(payload, '\n')
+	}
+	body := bytes.NewReader(payload)
+	bodyType := "multipart/form-data"
+
+	nsqURL.Path = "/mpub"
+	nsqURL.RawQuery = (url.Values{"topic": []string{topic}}).Encode()
+	if _, err := http.Post(nsqURL.String(), bodyType, body); err != nil {
+		glog.Fatalf("http.Post(%s): %s", nsqURL.String(), err)
+	}
+
 	return
 }
 
