@@ -245,6 +245,17 @@ var Data Config = Config{
 				},
 			},
 		},
+		&HandlerConfig{
+			Handler: "resolve-url",
+			Command: []string{"./resolve-url", "-etcd", "{{ .Etcd }}"},
+			Config: []*etcd.Item{
+				&etcd.Item{
+					Key:     "consume",
+					Default: "article.id.resolve.url",
+					Desc:    "Topic to watch for new items",
+				},
+			},
+		},
 	},
 }
 
