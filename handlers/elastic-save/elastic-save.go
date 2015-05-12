@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"strings"
+	"time"
 
 	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/types"
@@ -57,6 +58,9 @@ func main() {
 		}
 		if err = json.Unmarshal(data, &article); err != nil {
 			glog.Fatalf("%s - json.Unmarshal(): %s", id, err)
+		}
+		if article.Published.IsZero() {
+			article.Published = time.Now()
 		}
 		if _, err = conn.Index(config.ElasticIndex(), "article", id, nil, &article); err != nil {
 			glog.Fatalf("%s - elasticsearch.Index(): %s", id, err)
