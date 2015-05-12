@@ -122,6 +122,8 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 		pub := &types.Pub{
 			Id:          bson.NewObjectId(),
 			Name:        a.Source.Feed.Name,
+			Categories:  a.Source.Feed.EditorialTopics,
+			Country:     a.Source.Location.Country,
 			Description: a.Source.Feed.Description,
 			NumFeeds:    1,
 			MetabaseId:  a.Source.Feed.Id,
