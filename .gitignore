@@ -5,4 +5,5 @@ handlers/enqueue-feeds/enqueue-feeds
 handlers/recount-articles/recount-articles
 handlers/metabase/metabase
 handlers/metabase/metabase-ln
+handlers/resolve-url/resolve-url
 o8-server
