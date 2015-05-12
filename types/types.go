@@ -12,9 +12,11 @@ type Pub struct {
 	Name        string
 	Homepage    string
 	Description string
+	Country     string
 	NumArticles int
 	NumFeeds    int
 	NumReaders  int
+	Categories  []string
 	XPathBody   []string `bson:",omitempty" json:",omitempty"`
 	XPathAuthor []string `bson:",omitempty" json:",omitempty"`
 	XPathDate   []string `bson:",omitempty" json:",omitempty"`
