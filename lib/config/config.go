@@ -254,6 +254,11 @@ var Data Config = Config{
 					Default: "article.id.resolve.url",
 					Desc:    "Topic to watch for new items",
 				},
+				&etcd.Item{
+					Key:     "concurrent",
+					Default: "1",
+					Desc:    "How many instances can run concurrently",
+				},
 			},
 		},
 	},
