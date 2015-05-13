@@ -156,7 +156,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 					"Genre":        bson.M{"type": "string", "index": "not_analyzed"},
 					"BodyText":     bson.M{"type": "string", "index": "analyzed"},
 					"BodyHTML":     bson.M{"type": "string", "index": "no"},
-					"HTML":         bson.M{"type": "string", "index": "no"},
+					"HTML":         bson.M{"type": "string", "index": "no"}, // TODO switch type to binary?
 					"LoadTime":     bson.M{"type": "long"},
 					"IsLexisNexis": bson.M{"type": "boolean"},
 					"HasEmptyBody": bson.M{"type": "boolean"},
