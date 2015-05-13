@@ -144,6 +144,7 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 		feed.PubId = pub.Id
 		feed.Url = fmt.Sprintf("http://ocular8.com/feed/%d.xml", a.Source.Feed.Id)
 		feed.Added = time.Now()
+		feed.Genre = a.Source.Feed.Genre
 		if *isLexisNexis {
 			feed.Origin = "lexisnexis"
 		} else {
@@ -186,6 +187,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 			Url:          ra.Url,
 			Title:        ra.Title,
 			Author:       author,
+			Genre:        ra.Source.Feed.Genre,
 			Published:    ra.Published(),
 			BodyText:     ra.Content,
 			BodyHTML:     ra.ContentWithMarkup,
