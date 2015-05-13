@@ -32,6 +32,7 @@ type Feed struct {
 	Url          string
 	NumArticles  int
 	Origin       string
+	Genre        string
 	Added        time.Time
 	LastDownload time.Time `json:",omitempty"`
 	NextDownload time.Time `json:",omitempty"`
@@ -46,6 +47,7 @@ type Article struct {
 	Title        string
 	Author       string
 	Origin       string
+	Genre        string
 	Published    time.Time
 	BodyText     string
 	BodyHTML     string
