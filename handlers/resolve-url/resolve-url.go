@@ -20,14 +20,20 @@ func follow(url string) (newurl string, err error) {
 		err = errors.New("URL does not contain " + TargetDomain)
 		return
 	}
-	resp, err := http.Head(url)
+	req, err := http.NewRequest("HEAD", url, nil)
+	req.Header.Add("User-Agent", "Ocular8 URL-Resolver (http://ocular8.com)")
 	if err != nil {
 		return
 	}
-	if newurl = resp.Request.URL.String(); newurl == "" {
-		err = errors.New("No new URL found for " + url)
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
 		return
 	}
+	loc, err := resp.Location()
+	if err != nil {
+		return
+	}
+	newurl = loc.String()
 	return
 }
 
