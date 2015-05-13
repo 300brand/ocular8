@@ -248,7 +248,7 @@ var Data Config = Config{
 		},
 		&HandlerConfig{
 			Handler: "resolve-url",
-			Command: []string{"./resolve-url", "-etcd", "{{ .Etcd }}", "-logtostderr", "{{ .Data }}"},
+			Command: []string{"./resolve-url", "-etcd", "{{ .Etcd }}", "{{ .Data }}"},
 			Config: []*etcd.Item{
 				&etcd.Item{
 					Key:     "consume",
