@@ -59,9 +59,12 @@ func main() {
 		if err = json.Unmarshal(data, &article); err != nil {
 			glog.Fatalf("%s - json.Unmarshal(): %s", id, err)
 		}
+		// Final checks before shoving into
 		if article.Published.IsZero() {
-			article.Published = time.Now()
+			glog.Warningf("%s - Published is a zero-date. Setting to %s", id, article.Id.Time())
+			article.Published = article.Id.Time()
 		}
+		// Send article to ElasticSearch
 		if _, err = conn.Index(config.ElasticIndex(), "article", id, nil, &article); err != nil {
 			glog.Fatalf("%s - elasticsearch.Index(): %s", id, err)
 		}
