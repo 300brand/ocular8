@@ -155,6 +155,7 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 					"HTML":         bson.M{"type": "string", "index": "no"},
 					"LoadTime":     bson.M{"type": "long"},
 					"IsLexisNexis": bson.M{"type": "boolean"},
+					"HasEmptyBody": bson.M{"type": "boolean"},
 					"Added":        bson.M{"type": "date"},
 					"Entry":        bson.M{"type": "object", "enabled": false},
 					"Goose":        bson.M{"type": "object", "enabled": false},
