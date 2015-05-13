@@ -64,6 +64,7 @@ func process(entry *Entry) (err error) {
 		Url:    clean,
 		Author: entry.Author,
 		Title:  entry.Title,
+		Origin: "rss",
 		Entry:  new(types.Entry),
 		Added:  time.Now(),
 	}
