@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"strings"
-	"time"
 
 	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/types"
@@ -64,6 +63,7 @@ func main() {
 			glog.Warningf("%s - Published is a zero-date. Setting to %s", id, article.Id.Time())
 			article.Published = article.Id.Time()
 		}
+		article.HasEmptyBody = len(article.BodyText) == 0
 		// Send article to ElasticSearch
 		if _, err = conn.Index(config.ElasticIndex(), "article", id, nil, &article); err != nil {
 			glog.Fatalf("%s - elasticsearch.Index(): %s", id, err)
