@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/300brand/ocular8/lib/etcd"
+	goetcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
 )
 
@@ -247,7 +248,7 @@ var Data Config = Config{
 		},
 		&HandlerConfig{
 			Handler: "resolve-url",
-			Command: []string{"./resolve-url", "-etcd", "{{ .Etcd }}"},
+			Command: []string{"./resolve-url", "-etcd", "{{ .Etcd }}", "-logtostderr", "{{ .Data }}"},
 			Config: []*etcd.Item{
 				&etcd.Item{
 					Key:     "consume",
@@ -266,10 +267,13 @@ var Data Config = Config{
 
 func Parse() (err error) {
 	flag.Parse()
+	return
+}
 
-	if err = etcdConfig(&Data); err != nil {
+func Sync() (err error) {
+	err = etcdConfig(&Data)
+	if err != nil {
 		glog.Errorf("etcdConfig(): %s", err)
-		return
 	}
 	return
 }
@@ -388,7 +392,24 @@ func (h HandlerConfig) value(key string) string {
 }
 
 func item(key string) (item *etcd.Item) {
-	item, _ = mapping[key]
+	c := etcd.New(*flagEtcd)
+	resp, err := c.Get(key, false, false)
+	if e, ok := err.(*goetcd.EtcdError); ok {
+		switch e.ErrorCode {
+		case 100:
+			return nil
+		}
+	}
+	if err != nil {
+		glog.Fatalf("etcd.Client.Get(%s): %s", key, err)
+	}
+	item = &etcd.Item{
+		Key:     filepath.Base(key),
+		Path:    key,
+		Default: "",
+		Desc:    "",
+		Value:   resp.Node.Value,
+	}
 	return
 }
 

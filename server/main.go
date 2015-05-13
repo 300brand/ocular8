@@ -36,8 +36,10 @@ func startWeb(addr, dir string, stop chan bool) {
 }
 
 func main() {
-	if err := config.Parse(); err != nil {
-		glog.Fatalf("config.Parse(): %s", err)
+	config.Parse()
+
+	if err := config.Sync(); err != nil {
+		glog.Fatalf("config.Sync(): %s", err)
 	}
 
 	if *doPrime {
