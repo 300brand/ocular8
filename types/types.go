@@ -49,6 +49,7 @@ type Article struct {
 	BodyHTML     string
 	HTML         []byte
 	LoadTime     time.Duration
+	HasEmptyBody bool
 	IsLexisNexis bool
 	Added        time.Time
 	Entry        *Entry    `bson:",omitempty" json:",omitempty"`
