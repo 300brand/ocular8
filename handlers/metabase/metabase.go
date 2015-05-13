@@ -144,6 +144,11 @@ func parents(a *metabase.Article) (pubId, feedId bson.ObjectId, err error) {
 		feed.PubId = pub.Id
 		feed.Url = fmt.Sprintf("http://ocular8.com/feed/%d.xml", a.Source.Feed.Id)
 		feed.Added = time.Now()
+		if *isLexisNexis {
+			feed.Origin = "lexisnexis"
+		} else {
+			feed.Origin = "webnews"
+		}
 		if err = indexer.Index(index, "pub", pub.Id.Hex(), "", &pub.Added, pub, false); err != nil {
 			return
 		}
@@ -205,6 +210,11 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 		}
 		if a.PubId, a.FeedId, err = parents(ra); err != nil {
 			return
+		}
+		if a.IsLexisNexis {
+			a.Origin = "lexisnexis"
+		} else {
+			a.Origin = "webnews"
 		}
 		if lni := a.Metabase.Lni; lni != "" {
 			a.Url = fmt.Sprintf("http://www.ocular8.com/view/%s", lni)
