@@ -31,6 +31,7 @@ type Feed struct {
 	MetabaseId   int64 `bson:",omitempty" json:",omitempty"`
 	Url          string
 	NumArticles  int
+	Origin       string
 	Added        time.Time
 	LastDownload time.Time `json:",omitempty"`
 	NextDownload time.Time `json:",omitempty"`
@@ -44,6 +45,7 @@ type Article struct {
 	Url          string
 	Title        string
 	Author       string
+	Origin       string
 	Published    time.Time
 	BodyText     string
 	BodyHTML     string
