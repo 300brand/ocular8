@@ -112,6 +112,8 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 					"PubId":       bson.M{"type": "string", "index": "not_analyzed"},
 					"MetabaseId":  bson.M{"type": "long"},
 					"Name":        bson.M{"type": "string", "index": "analyzed"},
+					"Categories":  bson.M{"type": "string", "index": "not_analyzed"},
+					"Country":     bson.M{"type": "string", "index": "not_analyzed"},
 					"Homepage":    bson.M{"type": "string", "index": "no"},
 					"Description": bson.M{"type": "string", "index": "analyzed"},
 					"NumArticles": bson.M{"type": "integer"},
