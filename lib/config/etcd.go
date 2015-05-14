@@ -51,7 +51,9 @@ func flatten(prefix string, items []*etcd.Item) {
 }
 
 func syncItem(item *etcd.Item) (err error) {
-	client := etcd.New(*flagEtcd)
+	if client == nil {
+		glog.Fatal("Etcd client not initialized, did you run config.Parse()?")
+	}
 	item.Value, err = client.GetDefault(item.Path, item.Default, item.Desc)
 	if err != nil {
 		return
@@ -69,7 +71,9 @@ func syncItems(mapping map[string]*etcd.Item) (err error) {
 }
 
 func watch(cfg *Config, mapping map[string]*etcd.Item) {
-	client := etcd.New(*flagEtcd)
+	if client == nil {
+		glog.Fatal("Etcd client not initialized, did you run config.Parse()?")
+	}
 	for {
 		resp, err := client.Watch("/", 0, true, nil, nil)
 		if err != nil {

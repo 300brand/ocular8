@@ -265,8 +265,11 @@ var Data Config = Config{
 	},
 }
 
+var client *etcd.Client
+
 func Parse() (err error) {
 	flag.Parse()
+	client = etcd.New(*flagEtcd)
 	return
 }
 
@@ -392,8 +395,10 @@ func (h HandlerConfig) value(key string) string {
 }
 
 func item(key string) (item *etcd.Item) {
-	c := etcd.New(*flagEtcd)
-	resp, err := c.Get(key, false, false)
+	if client == nil {
+		glog.Fatal("Etcd client not initialized, did you run config.Parse()?")
+	}
+	resp, err := client.Get(key, false, false)
 	if e, ok := err.(*goetcd.EtcdError); ok {
 		switch e.ErrorCode {
 		case 100:
@@ -410,7 +415,6 @@ func item(key string) (item *etcd.Item) {
 		Desc:    "",
 		Value:   resp.Node.Value,
 	}
-	c.Close()
 	return
 }
 
