@@ -410,6 +410,7 @@ func item(key string) (item *etcd.Item) {
 		Desc:    "",
 		Value:   resp.Node.Value,
 	}
+	c.Close()
 	return
 }
 
