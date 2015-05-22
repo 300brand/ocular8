@@ -111,15 +111,31 @@ func updateArticles(oldId, newId string) (err error) {
 	dsl.Type("article")
 	dsl.Query(q)
 	dsl.Source(false)
+	dsl.Size("10")
+	dsl.Scroll("30s")
 	result, err := dsl.Result(conn)
 	if err != nil {
 		return
 	}
 	glog.Infof("updateArticles(%q, %q): Total: %d", oldId, newId, result.Hits.Total)
+	scroll := *result
+	args := map[string]interface{}{
+		"scroll": "30s",
+	}
 	update := &struct{ PubId string }{newId}
-	for _, hit := range result.Hits.Hits {
-		glog.Infof("[%s] Updating %q -> %q", hit.Id, oldId, newId)
-		err = bulk.UpdateWithPartialDoc(hit.Index, hit.Type, hit.Id, "", nil, update, false, false)
+	for {
+		if scroll.Hits.Len() == 0 {
+			break
+		}
+		glog.Infof("Processing %d / %d", scroll.Hits.Len(), scroll.Hits.Total)
+		for _, hit := range scroll.Hits.Hits {
+			glog.Infof("[%s] Updating %q -> %q", hit.Id, oldId, newId)
+			err = bulk.UpdateWithPartialDoc(hit.Index, hit.Type, hit.Id, "", nil, update, false, false)
+			if err != nil {
+				return
+			}
+		}
+		scroll, err = conn.Scroll(args, scroll.ScrollId)
 		if err != nil {
 			return
 		}
