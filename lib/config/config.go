@@ -194,6 +194,17 @@ var Data Config = Config{
 			},
 		},
 		&HandlerConfig{
+			Handler: "merge-publications",
+			Command: []string{"./merge-publications", "-etcd", "{{ .Etcd }}"},
+			Config: []*etcd.Item{
+				&etcd.Item{
+					Key:     "frequency",
+					Default: "12h",
+					Desc:    "How often to run, parsed by time.ParseDuration",
+				},
+			},
+		},
+		&HandlerConfig{
 			Handler: "metabase",
 			Command: []string{"./metabase", "-etcd", "{{ .Etcd }}"},
 			Config: []*etcd.Item{
