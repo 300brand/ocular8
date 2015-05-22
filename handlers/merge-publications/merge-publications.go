@@ -6,7 +6,6 @@ import (
 	"github.com/300brand/ocular8/lib/config"
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
-	"os"
 	"sort"
 )
 
@@ -19,11 +18,14 @@ type Pubs []*Pub
 
 var _ sort.Interface = make(Pubs, 0)
 
-var conn *elastigo.Conn
+var (
+	bulk  *elastigo.BulkIndexer
+	conn  *elastigo.Conn
+	index string
+)
 
 func allPubs() (pubs []*Pub, err error) {
-	// dsl := elastigo.Search(config.ElasticIndex())
-	dsl := elastigo.Search("ocular8")
+	dsl := elastigo.Search(index)
 	dsl.Type("pub")
 	dsl.Scroll("30s")
 	dsl.Source(true)
@@ -38,9 +40,7 @@ func allPubs() (pubs []*Pub, err error) {
 		"scroll": "30s",
 	}
 	for {
-		json.NewEncoder(os.Stdout).Encode(scroll)
 		if scroll.Hits.Len() == 0 {
-			glog.Infof("Done scrolling")
 			break
 		}
 		glog.Infof("Processing %d / %d", scroll.Hits.Len(), scroll.Hits.Total)
@@ -54,7 +54,6 @@ func allPubs() (pubs []*Pub, err error) {
 			}
 			p.Id = hit.Id
 			pubs = append(pubs, p)
-			glog.Infof("[%s] %s", p.Id, p.Name)
 		}
 		scroll, err = conn.Scroll(args, scroll.ScrollId)
 		if err != nil {
@@ -62,6 +61,10 @@ func allPubs() (pubs []*Pub, err error) {
 		}
 	}
 	return
+}
+
+func deletePub(pub *Pub) {
+	bulk.Delete(index, "pub", pub.Id, false)
 }
 
 // must be sorted!
@@ -95,6 +98,7 @@ func merge(pubs []*Pub) (err error) {
 		if err = updateArticles(child.Id, parent.Id); err != nil {
 			return
 		}
+		deletePub(child)
 	}
 	return
 }
@@ -103,15 +107,23 @@ func updateArticles(oldId, newId string) (err error) {
 	q := elastigo.Query()
 	q.Term("PubId", oldId)
 
-	// dsl:=elastigo.Search(config.ElasticIndex())
-	dsl := elastigo.Search("ocular8")
+	dsl := elastigo.Search(index)
 	dsl.Type("article")
 	dsl.Query(q)
+	dsl.Source(false)
 	result, err := dsl.Result(conn)
 	if err != nil {
 		return
 	}
 	glog.Infof("updateArticles(%q, %q): Total: %d", oldId, newId, result.Hits.Total)
+	update := &struct{ PubId string }{newId}
+	for _, hit := range result.Hits.Hits {
+		glog.Infof("[%s] Updating %q -> %q", hit.Id, oldId, newId)
+		err = bulk.UpdateWithPartialDoc(hit.Index, hit.Type, hit.Id, "", nil, update, false, false)
+		if err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -119,22 +131,32 @@ func updateFeeds(oldId, newId string) (err error) {
 	q := elastigo.Query()
 	q.Term("PubId", oldId)
 
-	// dsl:=elastigo.Search(config.ElasticIndex())
-	dsl := elastigo.Search("ocular8")
+	dsl := elastigo.Search(index)
 	dsl.Type("feed")
 	dsl.Query(q)
+	dsl.Source(false)
 	result, err := dsl.Result(conn)
 	if err != nil {
 		return
 	}
 	glog.Infof("updateFeeds(%q, %q): Total: %d", oldId, newId, result.Hits.Total)
+	update := &struct{ PubId string }{newId}
+	for _, hit := range result.Hits.Hits {
+		glog.Infof("[%s] [%s] [%s] Updating %q -> %q", hit.Index, hit.Type, hit.Id, oldId, newId)
+		err = bulk.UpdateWithPartialDoc(hit.Index, hit.Type, hit.Id, "", nil, update, false, false)
+		if err != nil {
+			return
+		}
+	}
 	return
 }
 
 func main() {
 	config.Parse()
 	conn = elastigo.NewConn()
-	// conn.SetHosts(config.ElasticHosts())
+	conn.SetHosts(config.ElasticHosts())
+	index = config.ElasticIndex()
+	bulk = conn.NewBulkIndexer(2)
 
 	pubs, err := allPubs()
 	if err != nil {
@@ -143,11 +165,13 @@ func main() {
 	sort.Sort(Pubs(pubs))
 	dupes := findDupes(pubs)
 	glog.Infof("Found %d dupes", len(dupes))
+	bulk.Start()
 	for _, dupe := range dupes {
 		if err = merge(dupe); err != nil {
 			glog.Fatalf("merge(%q): %s", dupe, err)
 		}
 	}
+	bulk.Stop()
 }
 
 func (p Pubs) Len() int {
