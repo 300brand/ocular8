@@ -11,6 +11,7 @@ type Pub struct {
 	MetabaseId  int64         `bson:",omitempty" json:",omitempty"`
 	Name        string
 	Homepage    string
+	Genre       string
 	Description string
 	Country     string
 	NumArticles int
