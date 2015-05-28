@@ -4,13 +4,18 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"flag"
-	"github.com/300brand/ocular8/lib/metabase"
-	"os"
 
+	"github.com/300brand/ocular8/lib/metabase"
 	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
 )
+
+type PubUpdate struct {
+	Genre      string
+	Country    string
+	Categories []string
+}
 
 var conn *elastigo.Conn
 
@@ -25,7 +30,6 @@ func main() {
 	pubDsl.Size("100")
 	pubDsl.Source(true)
 	pubDsl.Type("pub")
-	json.NewEncoder(os.Stdout).Encode(pubDsl)
 
 	pubResult, err := pubDsl.Result(conn)
 	if err != nil {
@@ -58,6 +62,7 @@ func main() {
 		}
 	}
 
+	updates := make(map[string]*PubUpdate, len(pubs))
 	articleDsl := elastigo.Search("ocular8")
 	articleDsl.Filter(elastigo.Filter().Terms("Origin", "webnews", "lexisnexis"))
 	articleDsl.Size("1")
@@ -66,7 +71,6 @@ func main() {
 	articleDsl.Type("article")
 	for _, pub := range pubs {
 		articleDsl.Query(elastigo.Query().Term("PubId", pub.Id.Hex()))
-		json.NewEncoder(os.Stdout).Encode(articleDsl)
 
 		result, err := articleDsl.Result(conn)
 		if err != nil {
@@ -84,8 +88,20 @@ func main() {
 		if err = xml.Unmarshal(article.HTML, metabaseArticle); err != nil {
 			glog.Fatalf("xml.Unmarshal(): %s", err)
 		}
-
-		glog.Infof("%q", metabaseArticle.Source.Feed.EditorialTopics)
-
+		updates[pub.Id.Hex()] = &PubUpdate{
+			Categories: metabaseArticle.Source.Feed.EditorialTopics,
+			Country:    metabaseArticle.Source.Location.Country,
+			Genre:      metabaseArticle.Source.Feed.Genre,
+		}
 	}
+
+	bulk := conn.NewBulkIndexer(3)
+	bulk.Start()
+	for id, update := range updates {
+		err = bulk.UpdateWithPartialDoc("ocular8", "pub", id, "", nil, update, false, false)
+		if err != nil {
+			glog.Fatalf("bulk.UpdateWithPartialDoc(): %s", err)
+		}
+	}
+	bulk.Stop()
 }
