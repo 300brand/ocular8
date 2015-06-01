@@ -47,9 +47,14 @@ var query = `{
 								}
 							},
 							{
+								"missing": {
+									"field": "NextDownload"
+								}
+							},
+							{
 								"range": {
 									"NextDownload": {
-										"gte": "now"
+										"lte": "now"
 									}
 								}
 							}
