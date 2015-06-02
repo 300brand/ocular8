@@ -28,7 +28,9 @@ var query = `{
 	"query": {
 		"filtered": {
 			"query": {
-				"match_all": {}
+				"term": {
+					"bozo": 0
+				}
 			},
 			"filter": {
 				"and": [
@@ -63,7 +65,15 @@ var query = `{
 				]
 			}
 		}
-	}
+	},
+	"sort": [
+		{
+			"NextDownload": {
+				"missing": "_first",
+				"order":   "asc"
+			}
+		}
+	]
 }`
 
 func checkStats() (err error) {
