@@ -174,6 +174,29 @@ func prime(elasticHosts []string, index, mysqldsn string) (err error) {
 		return
 	}
 
+	categoriesSettings := struct {
+		Mappings bson.M `json:"mappings"`
+	}{
+		Mappings: bson.M{
+			"alias": bson.M{
+				"properties": bson.M{
+					"Alias":      bson.M{"type": "string", "index": "not_analyzed"},
+					"Categories": bson.M{"type": "string", "index": "not_analyzed"},
+				},
+			},
+			"unique": bson.M{
+				"properties": bson.M{
+					"Category": bson.M{"type": "string", "index": "not_analyzed"},
+					"Added":    bson.M{"type": "date"},
+				},
+			},
+		},
+	}
+
+	if _, err = conn.CreateIndexWithSettings("categories", categoriesSettings); err != nil {
+		return
+	}
+
 	// Temporary structs to hold original data
 	type P struct {
 		Id          bson.ObjectId `json:"ID"`
