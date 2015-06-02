@@ -2,9 +2,10 @@ __pycache__
 handlers/download-entry/download-entry
 handlers/elastic-save/elastic-save
 handlers/enqueue-feeds/enqueue-feeds
-handlers/recount-articles/recount-articles
 handlers/merge-publications/merge-publications
 handlers/metabase/metabase
 handlers/metabase/metabase-ln
+handlers/recount-articles/recount-articles
 handlers/resolve-url/resolve-url
+handlers/unique-categories/unique-categories
 o8-server
