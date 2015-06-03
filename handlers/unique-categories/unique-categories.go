@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
-	"sort"
-	"strings"
-	"time"
 )
 
 type Category struct {
@@ -54,20 +55,21 @@ func main() {
 	if err != nil {
 		glog.Fatalf("pubDsl.Result(): %s", err)
 	}
-	pubs := make([]*types.Pub, 0, 50000)
 	scroll := *pubResult
 	args := map[string]interface{}{
 		"search_type": "scan",
 		"scroll":      "30s",
 	}
+	pubCount := 0
 	for {
 		if scroll.Hits.Len() == 0 {
 			break
 		}
-		glog.Infof("Processing %d / %d", len(pubs)+scroll.Hits.Len(), scroll.Hits.Total)
+		pubCount += scroll.Hits.Len()
+		glog.Infof("Processing %d / %d Categories: %d", pubCount, scroll.Hits.Total, len(categories))
 		for _, hit := range scroll.Hits.Hits {
 			if hit.Source == nil {
-				glog.Fatalf("hit.Source is nil. id: %s len(pubs) = %d", hit.Id, len(pubs))
+				glog.Fatalf("hit.Source is nil. id: %s", hit.Id)
 			}
 			p := new(types.Pub)
 			if err = json.Unmarshal(*hit.Source, p); err != nil {
@@ -86,10 +88,9 @@ func main() {
 	for _, cat := range categories {
 		id := catId(cat)
 		response, err := conn.Get("categories", "unique", id, nil)
-		if err != nil {
+		if err != nil && err != elastigo.RecordNotFound {
 			glog.Fatalf("conn.Get(%s): %s", id, err)
-		}
-		if response.Found {
+		} else if err == nil {
 			glog.Infof("Exists: [%s]: %q", id, cat)
 			continue
 		}
