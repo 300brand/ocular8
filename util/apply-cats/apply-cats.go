@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"time"
 
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
@@ -233,18 +232,14 @@ func main() {
 	}
 
 	if _, err := conn.CreateIndexWithSettings("categories", settings); err != nil {
-		glog.Fatalf("conn.CreateIndexWithSettings(): %s", err)
+		glog.Warningf("conn.CreateIndexWithSettings(): %s", err)
 	}
 
-	bulk := conn.NewBulkIndexer(3)
-	bulk.Start()
-	now := time.Now()
 	for i := range catmap {
-		err := bulk.Index("categories", "alias", bson.NewObjectId().Hex(), "", &now, catmap[i], false)
+		glog.Infof("%2d %s", i, catmap[i].Alias)
+		_, err := conn.Index("categories", "alias", bson.NewObjectId().Hex(), nil, catmap[i])
 		if err != nil {
 			glog.Fatalf("bulk.Index(): %s", err)
 		}
 	}
-	bulk.Stop()
-
 }
