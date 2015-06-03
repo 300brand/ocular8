@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
@@ -235,9 +236,11 @@ func main() {
 		glog.Warningf("conn.CreateIndexWithSettings(): %s", err)
 	}
 
-	for i := range catmap {
-		glog.Infof("%2d %s", i, catmap[i].Alias)
-		_, err := conn.Index("categories", "alias", bson.NewObjectId().Hex(), nil, catmap[i])
+	for _, cat := range catmap {
+		for i := range cat.Categories {
+			cat.Categories[i] = strings.Replace(cat.Categories[i], " ", "", -1)
+		}
+		_, err := conn.Index("categories", "alias", bson.NewObjectId().Hex(), nil, cat)
 		if err != nil {
 			glog.Fatalf("bulk.Index(): %s", err)
 		}
