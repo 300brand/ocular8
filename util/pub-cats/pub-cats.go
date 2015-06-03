@@ -69,7 +69,7 @@ func main() {
 	articleDsl.Source(true)
 	articleDsl.Sort(elastigo.Sort("ArticleId").Desc())
 	articleDsl.Type("article")
-	for _, pub := range pubs {
+	for i, pub := range pubs {
 		articleDsl.Query(elastigo.Query().Term("PubId", pub.Id.Hex()))
 
 		result, err := articleDsl.Result(conn)
@@ -77,7 +77,8 @@ func main() {
 			glog.Fatalf("articleDsl.Result(): %s", err)
 		}
 		if result.Hits.Total < 1 {
-			glog.Warningf("No articles found")
+			articleJson, _ := json.Marshal(articleDsl)
+			glog.Warningf("[%d] No articles found: %s", i, string(articleJson))
 			continue
 		}
 		article := new(types.Article)
