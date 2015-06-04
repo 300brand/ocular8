@@ -193,6 +193,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 			BodyHTML:     ra.ContentWithMarkup,
 			HTML:         ra.XML(),
 			IsLexisNexis: *isLexisNexis,
+			HasEmptyBody: len(ra.Content) < 10,
 			Added:        time.Now(),
 			Metabase: &types.Metabase{
 				Author:                author,
@@ -233,9 +234,6 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 				ra.Title,
 				ra.Url,
 			)
-		}
-		if a.BodyText == "" || a.BodyText == "__" {
-			a.HasEmptyBody = true
 		}
 		now := time.Now()
 		if err = indexer.Index(index, "article", a.Id.Hex(), "", &now, a, false); err != nil {
