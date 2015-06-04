@@ -196,6 +196,7 @@ func main() {
 				WHERE id = ?
 				LIMIT 1
 			`, err.Error(), id)
+			db.Exec(`DELETE FROM processing WHERE id = ? LIMIT 1`, id)
 		}
 	}
 }
