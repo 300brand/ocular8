@@ -56,7 +56,15 @@ func main() {
 			glog.Fatalf("%s - row.Scan(): %s", id, err)
 		}
 		if err = json.Unmarshal(data, &article); err != nil {
-			glog.Fatalf("%s - json.Unmarshal(): %s", id, err)
+			db.Exec(`INSERT INTO errors
+				(article_id, feed_id, pub_id, link, queue, data, started, last_action, reason)
+				SELECT article_id, feed_id, pub_id, link, queue, data, started, last_action, ? AS reason
+				FROM processing
+				WHERE id = ?
+				LIMIT 1`, "json.Unmarshal(): "+err.Error(), id)
+			db.Exec(`DELETE FROM processing WHERE id = ? LIMIT 1`, id)
+			glog.Errorf("%s - json.Unmarshal(): %s", id, err)
+			continue
 		}
 		// Final checks before shoving into
 		if article.Published.IsZero() {
