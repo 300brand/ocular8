@@ -234,6 +234,9 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 				ra.Url,
 			)
 		}
+		if a.BodyText == "" || a.BodyText == "__" {
+			a.HasEmptyBody = true
+		}
 		now := time.Now()
 		if err = indexer.Index(index, "article", a.Id.Hex(), "", &now, a, false); err != nil {
 			return
