@@ -76,7 +76,7 @@ func Consumer(c *config.HandlerConfig, stopChan chan bool) {
 		if err = consumer.ConnectToNSQLookupd(config.Nsqlookuphttp()); err != nil {
 			glog.Fatalf("consumer.ConnectToNSQLookupd(%q): %s", config.Nsqlookuptcp(), err)
 		}
-		consumer.SetLogger(log.New(os.Stderr, "NSQ", log.Flags()), nsq.LogLevelWarning)
+		consumer.SetLogger(log.New(os.Stderr, "NSQ ", log.Flags()), nsq.LogLevelWarning)
 	}
 
 Loop:
