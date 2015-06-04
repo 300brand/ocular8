@@ -1,16 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
+	"net/http"
+	"strings"
+
 	"github.com/300brand/ocular8/lib/config"
 	"github.com/300brand/ocular8/types"
 	"github.com/golang/glog"
 	"github.com/mattbaird/elastigo/lib"
 	"gopkg.in/mgo.v2/bson"
-	"net/http"
-	"strings"
 )
 
 const TargetDomain = "ct.moreover"
@@ -30,7 +30,14 @@ func follow(url string) (newurl string, err error) {
 		return
 	}
 	loc, err := resp.Location()
-	if err != nil {
+	if err != nil && err == http.ErrNoLocation {
+		return
+	}
+	// Getting url.Parse() errors, maybe sidestep them a little
+	if loc == nil {
+		newurl = resp.Header.Get("Location")
+		glog.Warningf("Using raw Location header value: %q", newurl)
+		err = nil
 		return
 	}
 	newurl = loc.String()
@@ -46,14 +53,9 @@ func main() {
 			glog.Errorf("Invalid BSON ObjectId: %s", id)
 			continue
 		}
-		response, err := elastic.Get(config.ElasticIndex(), "article", id, nil)
-		if err != nil {
-			glog.Errorf("Error fetching article with ID %s: %s", id, err)
-			continue
-		}
 		a := new(types.Article)
-		if err = json.Unmarshal(*response.Source, a); err != nil {
-			glog.Errorf("[%s] json.Unmarshal: %s", id, err)
+		if err := elastic.GetSource(config.ElasticIndex(), "article", id, nil, a); err != nil {
+			glog.Errorf("Error fetching article with ID %s: %s", id, err)
 			continue
 		}
 		newurl, err := follow(a.Metabase.Url)
