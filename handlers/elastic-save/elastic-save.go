@@ -61,8 +61,8 @@ func main() {
 				SELECT article_id, feed_id, pub_id, link, queue, data, started, last_action, ? AS reason
 				FROM processing
 				WHERE id = ?
-				LIMIT 1`, "json.Unmarshal(): "+err.Error(), id)
-			db.Exec(`DELETE FROM processing WHERE id = ? LIMIT 1`, id)
+				LIMIT 1`, "json.Unmarshal(): "+err.Error(), processing_id)
+			db.Exec(`DELETE FROM processing WHERE id = ? LIMIT 1`, processing_id)
 			glog.Errorf("%s - json.Unmarshal(): %s", id, err)
 			continue
 		}
