@@ -38,7 +38,7 @@ def process(db, es, index, article_id):
 
 	if 'XPathAuthor' in pub:
 		v = extract(article, pub['XPathAuthor'])
-		logging.warning('%s XPath Author: %r', prefix, v is not None)
+		logging.debug('%s XPath Author: %r', prefix, v is not None)
 		if v is not None:
 			extracted.append(('Author', v))
 
