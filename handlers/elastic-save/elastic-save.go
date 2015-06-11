@@ -14,6 +14,32 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+type M map[string]interface{}
+
+func urlExists(conn *elastic.Conn, a *types.Article) (exists bool) {
+	query := M{
+		"_source": false,
+		"query": M{
+			"bool": M{
+				"must": []M{
+					M{"term": M{"Url": a.Url}},
+				},
+				"must_not": []M{
+					// This bit allows re-saving articles with the same ID
+					M{"term": M{"ArticleId": a.Id}},
+				},
+			},
+		},
+	}
+	result, err := conn.Search("ocular8", "article", nil, query)
+	if err != nil {
+		glog.Errorf("urlExists(%q): %s", a.Url, err)
+		return
+	}
+	exists = result.Hits.Total > 0
+	return
+}
+
 func main() {
 	config.Parse()
 
@@ -66,7 +92,11 @@ func main() {
 			glog.Errorf("%s - json.Unmarshal(): %s", id, err)
 			continue
 		}
-		// Final checks before shoving into
+		// Final checks before shoving into database
+		if urlExists(conn, &article) {
+			glog.Warningf("%s - Article URL already exists [%s]", id, article.Url)
+			continue
+		}
 		if article.Published.IsZero() {
 			glog.Warningf("%s - Published is a zero-date. Setting to %s", id, article.Id.Time())
 			article.Published = article.Id.Time()
