@@ -257,22 +257,6 @@ var Data Config = Config{
 				},
 			},
 		},
-		&HandlerConfig{
-			Handler: "resolve-url",
-			Command: []string{"./resolve-url", "-etcd", "{{ .Etcd }}", "{{ .Data }}"},
-			Config: []*etcd.Item{
-				&etcd.Item{
-					Key:     "consume",
-					Default: "article.id.resolve.url",
-					Desc:    "Topic to watch for new items",
-				},
-				&etcd.Item{
-					Key:     "concurrent",
-					Default: "1",
-					Desc:    "How many instances can run concurrently",
-				},
-			},
-		},
 	},
 }
 
