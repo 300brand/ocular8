@@ -184,7 +184,7 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 		a := &types.Article{
 			Id:           bson.NewObjectId(),
 			BatchId:      batchId,
-			Url:          ra.Url,
+			Url:          ra.OriginalUrl,
 			Title:        ra.Title,
 			Author:       author,
 			Genre:        ra.Source.Feed.Genre,
@@ -210,6 +210,9 @@ func saveArticles(r *metabase.Response) (batchId bson.ObjectId, err error) {
 				LicenseEndDate:        ra.LicenseEndDate,
 				ContentLicenseEndDate: ra.ContentLicenseEndDate,
 			},
+		}
+		if a.Url == "" {
+			a.Url = a.Metabase.Url
 		}
 		if a.PubId, a.FeedId, err = parents(ra); err != nil {
 			return
